@@ -1,6 +1,6 @@
 {
 	"name": "mcpresso",
-	"version": "0.2.0",
+	"version": "0.2.3",
 	"description": "TypeScript package for Model Context Protocol (MCP) utilities and tools",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -49,6 +49,7 @@
 		"@hono/node-server": "^1.14.4",
 		"@modelcontextprotocol/sdk": "^1.13.1",
 		"cors": "^2.8.5",
+		"express-rate-limit": "^7.3.1",
 		"hono": "^4.8.2",
 		"jose": "^5.6.3",
 		"stripe": "^16.2.0",

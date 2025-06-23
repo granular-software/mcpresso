@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -7,6 +8,55 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import type { Express, Request, Response } from 'express';
 import type { CallToolResult, ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import { type AuthConfig, createAuthMiddleware } from './auth.js';
+
+/**
+ * Configuration for exponential back-off retries on handler failures.
+ */
+export interface RetryConfig {
+  /** The maximum number of retry attempts.
+   * @default 3
+   */
+  retries?: number;
+  /** The exponential factor to use.
+   * @default 2
+   */
+  factor?: number;
+  /** The minimum (initial) timeout in milliseconds.
+   * @default 1000
+   */
+  minTimeout?: number;
+  /** The maximum timeout in milliseconds.
+   * @default 30000
+   */
+  maxTimeout?: number;
+}
+
+/**
+ * Configuration for basic rate limiting on incoming requests.
+ * Uses `express-rate-limit`.
+ */
+export interface RateLimitConfig {
+  /** The time window in milliseconds.
+   * @default 900000 (15 minutes)
+   */
+  windowMs?: number;
+  /** The maximum number of requests to allow from an IP within the window.
+   * @default 100
+   */
+  limit?: number;
+  /**
+   * Whether to send `RateLimit` and `RateLimit-Policy` headers.
+   * Can be a boolean or a specific draft version.
+   * @see https://www.npmjs.com/package/express-rate-limit#standardheaders
+   * @default true
+   */
+  standardHeaders?: boolean | 'draft-6' | 'draft-7';
+  /**
+   * Whether to send legacy `X-RateLimit-*` headers.
+   * @default false
+   */
+  legacyHeaders?: boolean;
+}
 
 // --- Core Method and Resource Configuration ---
 
@@ -145,6 +195,10 @@ export interface MCPServerConfig {
   exposeTypes?: boolean | ResourceConfig<any>[];
   /** Optional configuration to enable OAuth 2.1 authentication. */
   auth?: AuthConfig;
+  /** Optional configuration for exponential back-off retry on handler failures. */
+  retry?: RetryConfig;
+  /** Optional configuration for rate limiting. */
+  rateLimit?: RateLimitConfig;
 }
 
 // --- Type Definitions for Exposed Types ---
@@ -201,6 +255,40 @@ function applyRelationsToJsonSchema(
     }
 
     return { ...jsonSchema, properties: newProperties };
+}
+
+/**
+ * A helper function that wraps a promise-based function with exponential back-off retry logic.
+ * @internal
+ */
+async function withRetry<T>(fn: () => Promise<T>, retryConfig?: RetryConfig): Promise<T> {
+  if (!retryConfig) {
+    return fn();
+  }
+
+  // Set defaults for retry configuration
+  const {
+    retries = 3,
+    factor = 2,
+    minTimeout = 1000,
+    maxTimeout = 30000,
+  } = retryConfig;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt === retries) {
+        console.error(`Handler failed after ${retries + 1} attempts.`, error);
+        throw error;
+      }
+      const timeout = Math.min(minTimeout * Math.pow(factor, attempt), maxTimeout);
+      console.log(`Attempt ${attempt + 1} failed. Retrying in ${timeout}ms...`);
+      await new Promise(resolve => setTimeout(resolve, timeout));
+    }
+  }
+  // This line should be unreachable
+  throw new Error('Exhausted retry attempts');
 }
 
 // --- Core Implementation ---
@@ -293,6 +381,17 @@ export function createMCPServer(config: MCPServerConfig): Express {
     const app = express();
     app.use(cors());
     app.use(express.json());
+
+    // Add rate limiting if configured
+    if (config.rateLimit) {
+        const limiter = rateLimit({
+            windowMs: config.rateLimit.windowMs,
+            limit: config.rateLimit.limit,
+            standardHeaders: config.rateLimit.standardHeaders,
+			legacyHeaders: config.rateLimit.legacyHeaders,
+        });
+        app.use(limiter);
+    }
 
     if (config.auth) {
         app.get('/.well-known/oauth-protected-resource-metadata', (req, res) => {
@@ -398,7 +497,7 @@ export function createMCPServer(config: MCPServerConfig): Express {
             const full_uri_template = `data://${config.name}/${uri_template}`;
             const template = new ResourceTemplate(full_uri_template, { list: undefined });
             server.resource(name, template, async (uri, { id }): Promise<ReadResourceResult> => {
-                const item = await get({ id: id as string });
+                const item = await withRetry(() => get({ id: id as string }), config.retry);
                 if (!item) {
                     return { contents: [] };
                 }
@@ -433,7 +532,7 @@ export function createMCPServer(config: MCPServerConfig): Express {
             const inputSchemaWithRelations = applyRelationsToJsonSchema(tempTool.inputSchema, inputSchema, relations, config.name);
 
             const registeredTool = server.tool(toolName, description, inputSchema.shape, async (args: z.infer<typeof inputSchema>): Promise<CallToolResult> => {
-                const result = await handler(args);
+                const result = await withRetry(() => handler(args), config.retry);
                 
                 // Validate the handler's output against the defined schema.
                 const validatedResult = method.outputSchema.parse(result);

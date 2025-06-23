@@ -270,6 +270,52 @@ auth: {
 
 ---
 
+## 🔁 Automatic Retries
+
+`mcpresso` can automatically retry failed handler executions with exponential back-off. This is useful for making your server more resilient to transient errors.
+
+To enable it, add a `retry` configuration to your server:
+
+```ts
+const server = createMCPServer({
+  name: "my_simple_server",
+  resources: [userResource],
+  retry: {
+    retries: 5, // Number of retries
+    factor: 2, // Exponential factor
+    minTimeout: 1000, // Initial timeout in ms
+    maxTimeout: 60000, // Maximum timeout in ms
+  },
+});
+```
+
+All configuration options are optional.
+
+A standalone example demonstrating this feature with a randomly failing handler is available at [`packages/mcpresso/examples/retry.ts`](./examples/retry.ts).
+
+---
+
+## ⏱️ Rate Limiting
+
+Protect your server from abuse by applying rate limiting. `mcpresso` uses the popular [`express-rate-limit`](https://www.npmjs.com/package/express-rate-limit) package under the hood.
+
+Enable it by adding a `rateLimit` configuration to your server:
+
+```ts
+const server = createMCPServer({
+  name: "my_simple_server",
+  resources: [userResource],
+  rateLimit: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 100, // Limit each IP to 100 requests per window
+  },
+});
+```
+
+A standalone example demonstrating this feature is available at [`packages/mcpresso/examples/rate-limit.ts`](./examples/rate-limit.ts).
+
+---
+
 ## 📁 Full Example
 
 A complete example showing most features is available at:
@@ -277,7 +323,3 @@ A complete example showing most features is available at:
 ```
 packages/mcpresso/examples/mcpresso.ts
 ```
-
----
-
-## Features (Work in Progress)
