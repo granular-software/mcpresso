@@ -3,7 +3,6 @@ import Stripe from "stripe";
 import { createResource, createMCPServer } from "../src/index";
 
 // --- Stripe Client Initialization ---
-// Make sure to set your Stripe secret key as an environment variable.
 if (!process.env.STRIPE_API_KEY) {
 	throw new Error("STRIPE_API_KEY environment variable not set.");
 }
@@ -13,7 +12,6 @@ const stripe = new Stripe(process.env.STRIPE_API_KEY, {
 });
 
 // --- Zod Schemas for Stripe Objects ---
-
 const CustomerSchema = z
 	.object({
 		id: z.string(),
@@ -27,7 +25,6 @@ const CustomerSchema = z
 	.describe("Stripe Customer object.");
 
 // --- mcpresso Resource Definitions ---
-
 const customerResource = createResource({
 	name: "customer",
 	schema: CustomerSchema,
@@ -89,7 +86,6 @@ const customerResource = createResource({
 
 const server = createMCPServer({
 	name: "stripe_server",
-	serverUrl: "http://localhost:3081",
 	resources: [customerResource],
 	exposeTypes: true,
 });

@@ -131,7 +131,7 @@ export interface MCPServerConfig {
   /** The name of the server, used in resource URIs. */
   name: string;
   /** The public-facing canonical URL of this server. Used for authentication (as audience) and in resource URIs. */
-  serverUrl: string;
+  serverUrl?: string;
   /**
    * An array of resource configurations.
    * This is now an array of the fully processed `ResourceConfig` objects.
@@ -216,8 +216,15 @@ export function createResource<T extends z.ZodObject<any, any, any>>(
 ): ResourceConfig<T> {
   const { name, schema, methods: methodBlueprints } = blueprint;
   const processedMethods: Record<string, Method> = {};
+  let getHandler: ((args: { id: string; }) => Promise<z.infer<T> | undefined>) | undefined;
 
   if (methodBlueprints) {
+    // Handle the 'get' method as a special case first.
+    if (methodBlueprints.get?.handler) {
+      getHandler = methodBlueprints.get.handler as any;
+      // Don't delete it - we'll process it as a regular method too
+    }
+
     for (const methodName in methodBlueprints) {
       const methodDef = methodBlueprints[methodName as keyof typeof methodBlueprints] as any;
       if (!methodDef?.handler) continue;
@@ -272,7 +279,7 @@ export function createResource<T extends z.ZodObject<any, any, any>>(
     schema: blueprint.schema,
     uri_template: blueprint.uri_template,
     relations: blueprint.relations,
-    // get: blueprint.get,
+    get: getHandler,
     methods: processedMethods,
   };
 }
@@ -298,7 +305,7 @@ export function createMCPServer(config: MCPServerConfig): Express {
     }
 
     const authMiddleware = config.auth
-        ? createAuthMiddleware(config.auth, config.serverUrl)
+        ? createAuthMiddleware(config.auth, config.serverUrl ?? '')
         : (req: Request, res: Response, next: express.NextFunction) => next();
 
     const server = new McpServer({
@@ -364,7 +371,7 @@ export function createMCPServer(config: MCPServerConfig): Express {
 
             // This is the read-only resource that serves the JSON schema.
             const uri = `type://${config.name}/${resourceName}`;
-            server.resource(`type_${resourceName}`, uri, async (): Promise<ReadResourceResult> => {
+            server.resource(`${resourceName}_typedef`, uri, async (): Promise<ReadResourceResult> => {
                 return {
                     contents: [{
                         uri,

@@ -32,6 +32,7 @@ const users: z.infer<typeof UserSchema>[] = [
 	{ id: "2", name: "Bob" },
 ];
 
+// Create a "tag" resource
 const tagResource = createResource({
 	name: "tag",
 	schema: TagSchema,
@@ -181,8 +182,7 @@ const userResource = createResource({
 
 // Create the MCP server
 const server = createMCPServer({
-	name: "my_serv",
-	serverUrl: "http://localhost:3080",
+	name: "my_server",
 	resources: [noteResource, userResource, tagResource],
 	exposeTypes: [noteResource, userResource, tagResource],
 	// auth: {
