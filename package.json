@@ -1,10 +1,13 @@
 {
-	"name": "mcpresso",
+	"name": "@granular-software/mcpresso",
 	"version": "0.1.0",
 	"description": "TypeScript package for Model Context Protocol (MCP) utilities and tools",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"source": "src/index.ts",
+	"publishConfig": {
+		"access": "public"
+	},
 	"exports": {
 		".": {
 			"source": "./src/index.ts",
@@ -15,9 +18,11 @@
 	},
 	"files": [
 		"dist/**/*",
-		"src/**/*"
+		"src/**/*",
+		"README.md"
 	],
 	"scripts": {
+		"prepublishOnly": "npm run build",
 		"build": "tsc",
 		"dev": "tsc --watch",
 		"clean": "rm -rf dist",
@@ -32,8 +37,16 @@
 		"tools",
 		"resources"
 	],
-	"author": "JOSHU Team",
+	"author": "Granular Software",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/granular-software/mcpresso.git"
+	},
+	"bugs": {
+		"url": "https://github.com/granular-software/mcpresso/issues"
+	},
+	"homepage": "https://github.com/granular-software/mcpresso#readme",
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^0.5.0",
 		"cors": "^2.8.5",
