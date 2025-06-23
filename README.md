@@ -1,4 +1,3 @@
-
 # mcpresso
 
 **mcpresso** is a lightweight, powerful TypeScript library for rapidly building [Model Context Protocol (MCP)](https://example.com) servers. It simplifies the process of exposing your data models and business logic as fully compliant MCP resources and tools, enabling seamless integration with AI agents and language models.
@@ -12,7 +11,11 @@ With a strong focus on developer experience, type safety, and flexibility, `mcpr
 * 🔐 **Add Authentication Fast**: Secure your server with OAuth 2.1 in just a few lines.
 * 🧠 **Extend with Custom Logic**: Create custom tools and advanced methods tailored to your application's domain.
 
-Built on [Express.js](https://expressjs.com/), `mcpresso` offers a familiar Node.js foundation while abstracting away MCP protocol complexity—so you can focus on your application's logic.
+An unopinionated, "bring your own" server toolkit for the Model-Context Protocol (MCP).
+
+**Note: This package is experimental and subject to breaking changes.**
+
+Built on [Hono](https://hono.dev/), `mcpresso` offers a familiar foundation while abstracting away MCP protocol complexity—so you can focus on your application's logic.
 
 ---
 
@@ -71,6 +74,10 @@ server.listen(3080, () => {
   console.log("MCPresso server running on http://localhost:3080");
 });
 ```
+
+## 🚀 Deployment
+
+For instructions on how to deploy your `mcpresso` server to various platforms like Cloudflare Workers, Vercel, and AWS Lambda, see our [Deployment Guide](./deploy.md).
 
 ---
 
@@ -272,3 +279,5 @@ packages/mcpresso/examples/mcpresso.ts
 ```
 
 ---
+
+## Features (Work in Progress)

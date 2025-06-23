@@ -1,8 +1,11 @@
-import express, { text, type Request, type Response } from "express";
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
+import { cors } from "hono/cors";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { type CallToolResult, type GetPromptResult, type ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import { fileURLToPath } from 'node:url';
 
 const getServer = () => {
 	// Create an MCP server with implementation details
@@ -124,78 +127,110 @@ const getServer = () => {
 	return server;
 };
 
-const app = express();
-app.use(express.json());
+export const app = new Hono();
+
+// Add CORS middleware
+app.use("/mcp", cors());
+
+// Optional: Add a logger middleware
+// app.use('*', logger())
 
 const server = getServer();
 
 setTimeout(() => {
-	server.tool("multiply", "Multiplies two numbers", { a: z.number().describe("The first number"), b: z.number().describe("The second number") }, async ({ a, b }) => ({
-		content: [{ type: "text", text: String(a * b) }],
-	}));
+	server.tool(
+		"multiply",
+		"Multiplies two numbers",
+		{ a: z.number().describe("The first number"), b: z.number().describe("The second number") },
+		async ({ a, b }) => ({
+			content: [{ type: "text", text: String(a * b) }],
+		}),
+	);
 	console.log("Added multiply tool");
 }, 15000);
 
-app.post("/mcp", async (req: Request, res: Response) => {
+app.post("/mcp", async (c) => {
 	try {
 		const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
 			sessionIdGenerator: undefined,
 		});
 		await server.connect(transport);
-		await transport.handleRequest(req, res, req.body);
-		res.on("close", () => {
-			console.log("Request closed");
-			transport.close();
-			server.close();
+
+		const body = await c.req.json();
+		// Hono's `c.res` is a `Response` object. The transport expects a `ServerResponse`.
+		// We can use the underlying node response object.
+		// @ts-expect-error - 'raw' is available from node-server
+		const nodeResponse = c.res.raw;
+		// @ts-expect-error - 'raw' is available from node-server
+		await transport.handleRequest(c.req.raw, nodeResponse, body);
+
+		// The transport handles the response, so we return an empty response from Hono.
+		// The connection will be kept alive by the transport.
+		// We need to wait for the transport to close to end the request.
+		await new Promise<void>((resolve) => {
+			nodeResponse.on("close", () => {
+				console.log("Request closed");
+				transport.close();
+				server.close();
+				resolve();
+			});
 		});
+		return nodeResponse;
 	} catch (error) {
 		console.error("Error handling MCP request:", error);
-		if (!res.headersSent) {
-			res.status(500).json({
+		return c.json(
+			{
 				jsonrpc: "2.0",
 				error: {
 					code: -32603,
 					message: "Internal server error",
 				},
 				id: null,
-			});
-		}
+			},
+			500,
+		);
 	}
 });
 
-app.get("/mcp", async (req: Request, res: Response) => {
+app.get("/mcp", (c) => {
 	console.log("Received GET MCP request");
-	res.writeHead(405).end(
-		JSON.stringify({
+	return c.json(
+		{
 			jsonrpc: "2.0",
 			error: {
 				code: -32000,
 				message: "Method not allowed.",
 			},
 			id: null,
-		}),
+		},
+		405,
 	);
 });
 
-app.delete("/mcp", async (req: Request, res: Response) => {
+app.delete("/mcp", (c) => {
 	console.log("Received DELETE MCP request");
-	res.writeHead(405).end(
-		JSON.stringify({
+	return c.json(
+		{
 			jsonrpc: "2.0",
 			error: {
 				code: -32000,
 				message: "Method not allowed.",
 			},
 			id: null,
-		}),
+		},
+		405,
 	);
 });
 
-// Start the server
-const PORT = 4000;
-app.listen(PORT, () => {
+// Start the server only when run directly
+if (require.main === module) {
+	const PORT = 4000;
+	serve({
+		fetch: app.fetch,
+		port: PORT,
+	});
 	console.log(`MCP Stateless Streamable HTTP Server listening on port ${PORT}`);
-});
+}
 
 // Handle server shutdown
 process.on("SIGINT", async () => {

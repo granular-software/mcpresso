@@ -6,7 +6,7 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { Express, Request, Response } from 'express';
 import type { CallToolResult, ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
-import { type AuthConfig, createAuthMiddleware } from './auth';
+import { type AuthConfig, createAuthMiddleware } from './auth.js';
 
 // --- Core Method and Resource Configuration ---
 
@@ -371,7 +371,7 @@ export function createMCPServer(config: MCPServerConfig): Express {
 
             // This is the read-only resource that serves the JSON schema.
             const uri = `type://${config.name}/${resourceName}`;
-            server.resource(`${resourceName}_typedef`, uri, async (): Promise<ReadResourceResult> => {
+            server.resource(`${resourceName}`, uri, async (): Promise<ReadResourceResult> => {
                 return {
                     contents: [{
                         uri,
@@ -470,6 +470,7 @@ export function createMCPServer(config: MCPServerConfig): Express {
         // Ensure the transport is cleaned up when the client connection closes.
         res.on('close', () => {
             transport.close();
+            server.close();
         });
     });
 
