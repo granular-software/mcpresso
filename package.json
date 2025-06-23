@@ -1,13 +1,10 @@
 {
-	"name": "@granular-software/mcpresso",
+	"name": "mcpresso",
 	"version": "0.1.0",
 	"description": "TypeScript package for Model Context Protocol (MCP) utilities and tools",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"source": "src/index.ts",
-	"publishConfig": {
-		"access": "public"
-	},
 	"exports": {
 		".": {
 			"source": "./src/index.ts",

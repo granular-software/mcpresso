@@ -18,15 +18,15 @@ Powered by Express.js, `mcpresso` provides a familiar foundation while abstracti
 Install `mcpresso` using your favorite package manager:
 
 ```bash
-npm install @joshu/mcpresso
+npm install mcpresso
 ```
 
 ```bash
-yarn add @joshu/mcpresso
+yarn add mcpresso
 ```
 
 ```bash
-pnpm add @joshu/mcpresso
+pnpm add mcpresso
 ```
 
 ## Quick Start
@@ -60,7 +60,6 @@ const userResource = createResource({
 // 3. Create and launch the MCP server
 const server = createMCPServer({
   name: "my_simple_server",
-  serverUrl: "http://localhost:3080",
   resources: [userResource],
 });
 
