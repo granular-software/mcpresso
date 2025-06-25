@@ -1,6 +1,6 @@
 import { z } from "zod";
 import Stripe from "stripe";
-import { createResource, createMCPServer } from "../src/index";
+import { createResource, createMCPServer } from "../src/index.js";
 
 // --- Stripe Client Initialization ---
 if (!process.env.STRIPE_API_KEY) {

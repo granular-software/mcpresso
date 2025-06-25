@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createResource, createMCPServer } from "../src/index";
+import { createResource, createMCPServer } from "../src/index.js";
 
 // Define a schema for our tags
 const TagSchema = z.object({

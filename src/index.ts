@@ -58,6 +58,44 @@ export interface RateLimitConfig {
   legacyHeaders?: boolean;
 }
 
+/**
+ * Server metadata that can be exposed as an MCP resource.
+ */
+export interface ServerMetadata {
+  /** The name of the server. */
+  name: string;
+  /** The version of the server. */
+  version: string;
+  /** A description of the server. */
+  description?: string;
+  /** The canonical URL of the server. */
+  url?: string;
+  /** Contact information for the server maintainers. */
+  contact?: {
+    name?: string;
+    email?: string;
+    url?: string;
+  };
+  /** License information. */
+  license?: {
+    name: string;
+    url?: string;
+  };
+  /** Available resources and their descriptions. */
+  resources?: Array<{
+    name: string;
+    description?: string;
+    methods: string[];
+  }>;
+  /** Server capabilities and features. */
+  capabilities?: {
+    authentication?: boolean;
+    rateLimiting?: boolean;
+    retries?: boolean;
+    streaming?: boolean;
+  };
+}
+
 // --- Core Method and Resource Configuration ---
 
 /** Represents a relationship to another resource type. */
@@ -199,6 +237,8 @@ export interface MCPServerConfig {
   retry?: RetryConfig;
   /** Optional configuration for rate limiting. */
   rateLimit?: RateLimitConfig;
+  /** Optional server metadata to expose as an MCP resource. */
+  serverMetadata?: ServerMetadata;
 }
 
 // --- Type Definitions for Exposed Types ---
@@ -291,6 +331,70 @@ async function withRetry<T>(fn: () => Promise<T>, retryConfig?: RetryConfig): Pr
   throw new Error('Exhausted retry attempts');
 }
 
+/**
+ * Helper function to extract editable properties from a Zod schema.
+ * Properties marked with .readonly() are excluded from create/update operations.
+ */
+function extractEditableProperties<T extends z.ZodObject<any, any, any>>(schema: T): z.ZodObject<any> {
+  const shape = schema.shape;
+  const editableShape: Record<string, z.ZodTypeAny> = {};
+  
+  for (const [key, value] of Object.entries(shape) as [string, z.ZodTypeAny][]) {
+    // Check if the property is readonly by examining the Zod type
+    // This is a heuristic - we look for the _def property that indicates readonly
+    const isReadonly = (value as any)._def?.typeName === 'ZodReadonly' || 
+                      (value as any)._def?.innerType?._def?.typeName === 'ZodReadonly';
+    
+    if (!isReadonly) {
+      editableShape[key] = value;
+    }
+  }
+  
+  return z.object(editableShape);
+}
+
+/**
+ * Helper function to create a schema for create operations.
+ * Excludes readonly properties and common server-managed fields.
+ */
+function createCreateSchema<T extends z.ZodObject<any, any, any>>(schema: T): z.ZodObject<any> {
+  const editableSchema = extractEditableProperties(schema);
+  
+  // Also exclude common server-managed fields that shouldn't be in create operations
+  const serverManagedFields = ['id', 'createdAt', 'updatedAt'];
+  const createShape: Record<string, z.ZodTypeAny> = {};
+  
+  for (const [key, value] of Object.entries(editableSchema.shape) as [string, z.ZodTypeAny][]) {
+    if (!serverManagedFields.includes(key)) {
+      createShape[key] = value;
+    }
+  }
+  
+  return z.object(createShape);
+}
+
+/**
+ * Helper function to create a schema for update operations.
+ * Excludes readonly properties but allows partial updates.
+ */
+function createUpdateSchema<T extends z.ZodObject<any, any, any>>(schema: T): z.ZodObject<any> {
+  const editableSchema = extractEditableProperties(schema);
+  
+  // Make all editable properties optional for updates
+  const updateShape: Record<string, z.ZodTypeAny> = {};
+  
+  for (const [key, value] of Object.entries(editableSchema.shape) as [string, z.ZodTypeAny][]) {
+    // Don't make id optional as it's required for updates
+    if (key === 'id') {
+      updateShape[key] = value;
+    } else {
+      updateShape[key] = value.optional();
+    }
+  }
+  
+  return z.object(updateShape);
+}
+
 // --- Core Implementation ---
 
 /**
@@ -329,12 +433,12 @@ export function createResource<T extends z.ZodObject<any, any, any>>(
           break;
         case 'create':
           description ??= `Create a new ${name}.`;
-          inputSchema ??= schema.omit({ id: true, createdAt: true, updatedAt: true });
+          inputSchema ??= createCreateSchema(schema);
           outputSchema ??= schema;
           break;
         case 'update':
           description ??= `Update an existing ${name}.`;
-          inputSchema ??= schema.partial().extend({ id: z.string() });
+          inputSchema ??= createUpdateSchema(schema);
           outputSchema ??= schema;
           break;
         case 'delete':
@@ -557,6 +661,35 @@ export function createMCPServer(config: MCPServerConfig): Express {
             // Overwrite the schema with our modified version.
             (registeredTool as any).inputSchema = inputSchemaWithRelations;
         }
+    }
+
+    // --- Server Metadata Exposure ---
+    // If server metadata is provided, expose it as a read-only resource
+    if (config.serverMetadata) {
+        const metadataResource = {
+            ...config.serverMetadata,
+            resources: config.resources.map(r => ({
+                name: r.name,
+                description: r.schema.description,
+                methods: Object.keys(r.methods),
+            })),
+            capabilities: {
+                authentication: !!config.auth,
+                rateLimiting: !!config.rateLimit,
+                retries: !!config.retry,
+                streaming: true, // MCP supports streaming
+            },
+        };
+
+        server.resource('server_metadata', `metadata://${config.name}/server`, async (): Promise<ReadResourceResult> => {
+            return {
+                contents: [{
+                    uri: `metadata://${config.name}/server`,
+                    mimeType: 'application/json',
+                    text: JSON.stringify(metadataResource, null, 2),
+                }],
+            };
+        });
     }
 
     // --- Server Transport ---
