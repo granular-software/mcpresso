@@ -1,6 +1,6 @@
 {
 	"name": "mcpresso",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"description": "TypeScript package for Model Context Protocol (MCP) utilities and tools",
 	"type": "module",
 	"main": "dist/index.js",
@@ -21,15 +21,14 @@
 	],
 	"scripts": {
 		"prepublishOnly": "bun run build",
-		"build": "bun build ./src/index.ts --outdir ./dist --target node && bun build ./src/cli.ts --outdir ./dist --target node",
+		"build": "bun build ./src/index.ts --outdir ./dist --target node",
 		"dev": "bun build ./src/index.ts --outdir ./dist --watch --target node",
 		"clean": "rm -rf dist",
 		"test": "bun test",
 		"test:watch": "bun test --watch",
 		"test:e2e": "bun test test/e2e.test.ts",
 		"test:simple": "bun test test/simple-e2e.test.ts",
-		"typecheck": "tsc --noEmit",
-		"cli": "bun run build && node ./dist/cli.js"
+		"typecheck": "tsc --noEmit"
 	},
 	"keywords": [
 		"mcp",
@@ -76,9 +75,6 @@
 		"supertest": "^7.1.1",
 		"ts-jest": "^29.1.0",
 		"typescript": "^5.0.0"
-	},
-	"bin": {
-		"mcpresso": "./dist/cli.js"
 	},
 	"engines": {
 		"node": ">=18.0.0"
