@@ -75,73 +75,44 @@ server.listen(3080, () => {
 });
 ```
 
-## 🛠️ CLI Tool
+## 🛠️ OpenAPI Generator
 
-`mcpresso` includes a powerful CLI tool that can generate MCPresso servers directly from OpenAPI specifications:
+For generating MCPresso servers from OpenAPI specifications, we now have a dedicated package: **[mcpresso-openapi-generator](https://github.com/granular-software/mcpresso-openapi-generator)**.
+
+This standalone package provides a powerful CLI tool that can generate complete MCPresso servers directly from any OpenAPI 3.x specification with full type safety and MCP compliance.
 
 ### Installation
 
-The CLI is included with the `mcpresso` package:
-
 ```bash
-npm install -g mcpresso
+npm install -g mcpresso-openapi-generator
 ```
 
-### Usage
-
-Generate a complete MCPresso server from any OpenAPI 3.x specification:
+### Quick Usage
 
 ```bash
-# From a URL
-mcpresso generate "https://petstore3.swagger.io/api/v3/openapi.yaml" \
-  --output ./my-api-server \
-  --name my-api
+# Generate a server from OpenAPI spec
+mcpresso-generate generate \
+  --source ./api-spec.json \
+  --output ./my-server \
+  --name my-api-server \
+  --verbose
 
-# From a local file
-mcpresso generate "./api-spec.yaml" \
-  --output ./my-api-server \
-  --name my-api \
+# Initialize a new MCPresso project
+mcpresso-generate init \
+  --name my-project \
+  --output ./projects \
   --verbose
 ```
 
-### CLI Options
+### Features
 
-- `--output, -o`: Output directory for the generated server
-- `--name, -n`: Name for the generated server
-- `--verbose, -v`: Enable verbose logging
-- `--format, -f`: Format generated code (default: true)
+- 🚀 **Automatic Generation**: Convert any OpenAPI 3.0 specification to a MCPresso server
+- 🔒 **Type Safety**: Full TypeScript support with Zod schema validation
+- 🎯 **MCP Compliance**: Generated servers follow MCP (Model Context Protocol) standards
+- 📦 **Ready to Run**: Complete project structure with dependencies and scripts
+- 🔧 **Customizable**: Configurable API client with authentication and error handling
 
-### Generated Output
-
-The CLI generates a complete, runnable MCPresso server with:
-
-- **Server Configuration**: Main server file with all resources configured
-- **Resource Files**: Individual resource definitions with HTTP handlers
-- **Schema Files**: Zod schemas converted from OpenAPI definitions
-- **API Client**: Configured axios client for making HTTP requests
-- **Package.json**: Dependencies and scripts for running the server
-- **README**: Documentation for the generated server
-
-### Example
-
-```bash
-# Generate a server from the Petstore API
-mcpresso generate "https://petstore3.swagger.io/api/v3/openapi.yaml" \
-  --output ./petstore-server \
-  --name petstore \
-  --verbose
-
-# Navigate to the generated server
-cd petstore-server
-
-# Install dependencies
-npm install
-
-# Start the server
-npm start
-```
-
-The generated server will be available at `http://localhost:3080` and ready to use with MCP clients.
+Visit the [mcpresso-openapi-generator repository](https://github.com/granular-software/mcpresso-openapi-generator) for full documentation and examples.
 
 ## 🚀 Deployment
 
@@ -424,59 +395,6 @@ A standalone example demonstrating this feature is available at [`packages/mcpre
 
 ---
 
-## 🛠️ CLI Tool
-
-`mcpresso` includes a powerful CLI tool for generating MCPresso servers from OpenAPI specifications.
-
-### Installation
-
-The CLI is included with the main package:
-
-```bash
-npm install mcpresso
-```
-
-### Basic Usage
-
-Generate a MCPresso server from an OpenAPI specification:
-
-```bash
-npx mcpresso generate ./openapi.yaml
-```
-
-### CLI Options
-
-```bash
-npx mcpresso generate <source> [options]
-
-Options:
-  -o, --output <directory>  Output directory for generated code (default: "./generated-mcpresso")
-  -n, --name <name>         Server name (default: "generated-server")
-  -v, --verbose            Enable verbose logging
-  --no-format              Skip code formatting
-```
-
-### Example
-
-```bash
-# Generate from a local OpenAPI file
-npx mcpresso generate ./api-spec.yaml -o ./my-server -n my_api_server
-
-# Generate from a remote OpenAPI URL
-npx mcpresso generate https://api.example.com/openapi.json -o ./generated
-```
-
-The CLI will generate:
-- Complete MCPresso server code
-- Zod schemas converted from OpenAPI
-- Resource definitions with proper URI templates
-- TypeScript types and documentation
-- Ready-to-run server with proper configuration
-
-**Note**: The CLI tool is currently in development. Full OpenAPI to MCPresso conversion will be available in upcoming releases.
-
----
-
 ## 📁 Full Example
 
 A complete example showing most features is available at:
@@ -488,3 +406,42 @@ packages/mcpresso/examples/mcpresso.ts
 ## Documentation
 
 - [MCPresso Generator Guide](./docs/generator.md)
+
+## 🛠️ OpenAPI Generator
+
+For generating MCPresso servers from OpenAPI specifications, we now have a dedicated package: **[mcpresso-openapi-generator](https://github.com/granular-software/mcpresso-openapi-generator)**.
+
+This standalone package provides a powerful CLI tool that can generate complete MCPresso servers directly from any OpenAPI 3.x specification with full type safety and MCP compliance.
+
+### Installation
+
+```bash
+npm install -g mcpresso-openapi-generator
+```
+
+### Quick Usage
+
+```bash
+# Generate a server from OpenAPI spec
+mcpresso-generate generate \
+  --source ./api-spec.json \
+  --output ./my-server \
+  --name my-api-server \
+  --verbose
+
+# Initialize a new MCPresso project
+mcpresso-generate init \
+  --name my-project \
+  --output ./projects \
+  --verbose
+```
+
+### Features
+
+- 🚀 **Automatic Generation**: Convert any OpenAPI 3.0 specification to a MCPresso server
+- 🔒 **Type Safety**: Full TypeScript support with Zod schema validation
+- 🎯 **MCP Compliance**: Generated servers follow MCP (Model Context Protocol) standards
+- 📦 **Ready to Run**: Complete project structure with dependencies and scripts
+- 🔧 **Customizable**: Configurable API client with authentication and error handling
+
+Visit the [mcpresso-openapi-generator repository](https://github.com/granular-software/mcpresso-openapi-generator) for full documentation and examples.
