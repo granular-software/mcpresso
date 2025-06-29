@@ -19,11 +19,24 @@ export interface AuthConfig {
  * @returns An Express middleware function.
  */
 export function createAuthMiddleware(authConfig: AuthConfig, serverUrl: string) {
+
     const JWKS = createRemoteJWKSet(
         new URL(`${authConfig.issuer}/.well-known/jwks.json`)
     );
 
-    const metadataUrl = new URL('/.well-known/oauth-protected-resource-metadata', serverUrl).href;
+    // Construct the metadata URL properly, handling cases where serverUrl might be empty
+    let metadataUrl: string;
+    try {
+        if (!serverUrl) {
+            // If no server URL is provided, use a default for the WWW-Authenticate header
+            metadataUrl = "/.well-known/oauth-protected-resource-metadata";
+        } else {
+            metadataUrl = new URL('/.well-known/oauth-protected-resource-metadata', serverUrl).href;
+        }
+    } catch (error) {
+        // Fallback if URL construction fails
+        metadataUrl = "/.well-known/oauth-protected-resource-metadata";
+    }
 
     return async (req: Request, res: Response, next: NextFunction) => {
         const authHeader = req.headers.authorization;
@@ -40,7 +53,7 @@ export function createAuthMiddleware(authConfig: AuthConfig, serverUrl: string) 
         try {
             const { payload } = await jwtVerify(token, JWKS, {
                 issuer: authConfig.issuer,
-                audience: serverUrl,
+                audience: serverUrl || undefined, // Only set audience if serverUrl is provided
             });
 
             // You can optionally attach the payload to the request for use in handlers

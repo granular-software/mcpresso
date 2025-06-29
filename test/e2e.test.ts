@@ -201,7 +201,8 @@ describe("MCPresso End-to-End Tests", () => {
     it("should create, read, update, and delete users", async () => {
       // Create a user
       const createResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -225,7 +226,8 @@ describe("MCPresso End-to-End Tests", () => {
 
       // Read the user
       const getResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 2,
@@ -242,7 +244,8 @@ describe("MCPresso End-to-End Tests", () => {
 
       // Update the user
       const updateResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 3,
@@ -261,7 +264,8 @@ describe("MCPresso End-to-End Tests", () => {
 
       // List users
       const listResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 4,
@@ -277,7 +281,8 @@ describe("MCPresso End-to-End Tests", () => {
 
       // Delete the user
       const deleteResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 5,
@@ -295,7 +300,8 @@ describe("MCPresso End-to-End Tests", () => {
     it("should handle non-existent resources gracefully", async () => {
       // Try to get non-existent user
       const getResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -311,7 +317,8 @@ describe("MCPresso End-to-End Tests", () => {
 
       // Try to delete non-existent user
       const deleteResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 2,
@@ -337,7 +344,8 @@ describe("MCPresso End-to-End Tests", () => {
     it("should exclude readonly fields from create operations", async () => {
       // Create a user with readonly fields (should be ignored)
       const createResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -363,7 +371,8 @@ describe("MCPresso End-to-End Tests", () => {
     it("should exclude readonly fields from update operations", async () => {
       // Create a user first
       const createResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -382,7 +391,8 @@ describe("MCPresso End-to-End Tests", () => {
 
       // Try to update readonly fields (should be ignored)
       const updateResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 2,
@@ -430,7 +440,8 @@ describe("MCPresso End-to-End Tests", () => {
 
       // Search by name
       const searchResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -448,7 +459,8 @@ describe("MCPresso End-to-End Tests", () => {
 
       // Search by email
       const emailSearchResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 2,
@@ -502,7 +514,8 @@ describe("MCPresso End-to-End Tests", () => {
 
       // Count posts by author
       const countResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -528,7 +541,8 @@ describe("MCPresso End-to-End Tests", () => {
     it("should expose resource types as MCP resources", async () => {
       // Get the list of available types
       const listTypesResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -554,7 +568,8 @@ describe("MCPresso End-to-End Tests", () => {
     it("should provide JSON schemas for exposed types", async () => {
       // Read a specific type resource
       const readTypeResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -589,7 +604,8 @@ describe("MCPresso End-to-End Tests", () => {
     it("should expose server metadata as a resource", async () => {
       // Read server metadata
       const readMetadataResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -627,7 +643,8 @@ describe("MCPresso End-to-End Tests", () => {
       for (let i = 0; i < 3; i++) {
         promises.push(
           request(server)
-            .post("/mcp")
+            .post("/")
+          .set("Accept", "application/json, text/event-stream")
             .send({
               jsonrpc: "2.0",
               id: i + 1,
@@ -659,7 +676,8 @@ describe("MCPresso End-to-End Tests", () => {
 
     it("should handle invalid JSON-RPC requests", async () => {
       const response = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -674,7 +692,8 @@ describe("MCPresso End-to-End Tests", () => {
 
     it("should handle validation errors", async () => {
       const response = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -700,19 +719,30 @@ describe("MCPresso End-to-End Tests", () => {
       serverInstance = server.listen(0);
     });
 
-    it("should reject GET requests to MCP endpoint", async () => {
-      const response = await request(server).get("/mcp");
-      expect(response.status).toBe(405);
+    it("should accept GET requests to MCP endpoint for SSE", async () => {
+      const response = await request(server)
+        .get("/")
+        .set("Accept", "text/event-stream");
+      
+      // GET requests with proper Accept header should be accepted
+      expect(response.status).toBe(200);
+      expect(response.headers["content-type"]).toContain("text/event-stream");
     });
 
-    it("should reject DELETE requests to MCP endpoint", async () => {
-      const response = await request(server).delete("/mcp");
-      expect(response.status).toBe(405);
+    it("should reject GET requests without proper Accept header", async () => {
+      const response = await request(server).get("/");
+      expect(response.status).toBe(406); // Not Acceptable
+    });
+
+    it("should accept DELETE requests to MCP endpoint", async () => {
+      const response = await request(server).delete("/");
+      expect(response.status).toBe(200);
     });
 
     it("should accept POST requests to MCP endpoint", async () => {
       const response = await request(server)
-        .post("/mcp")
+        .post("/")
+          .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -721,6 +751,12 @@ describe("MCPresso End-to-End Tests", () => {
         });
 
       expect(response.status).toBe(200);
+    });
+
+    it("should reject unsupported HTTP methods", async () => {
+      const response = await request(server).put("/");
+      expect(response.status).toBe(405);
+      expect(response.body.message).toContain("Only POST, GET, and DELETE requests are allowed");
     });
   });
 
@@ -732,10 +768,10 @@ describe("MCPresso End-to-End Tests", () => {
 
     it("should handle CORS preflight requests", async () => {
       const response = await request(server)
-        .options("/mcp")
+        .options("/")
         .set("Origin", "http://localhost:3000")
         .set("Access-Control-Request-Method", "POST")
-        .set("Access-Control-Request-Headers", "Content-Type");
+        .set("Access-Control-Request-Headers", "Content-Type, mcp-session-id, accept, last-event-id");
 
       expect(response.status).toBe(200);
       expect(response.headers["access-control-allow-origin"]).toBeDefined();

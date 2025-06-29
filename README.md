@@ -395,6 +395,34 @@ A standalone example demonstrating this feature is available at [`packages/mcpre
 
 ---
 
+## 🎭 Server Side Events
+
+### Notifications
+
+When tools are added or removed, the server sends notifications to connected clients using the standard MCP notification format:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/tools/list_changed",
+  "params": {}
+}
+```
+
+This follows the MCP specification for tool list change notifications. Clients should respond to this notification by calling `tools/list` to get the updated list of available tools.
+
+### SSE Streaming
+
+Connect to the server via SSE to receive real-time notifications:
+
+```bash
+curl -H "Accept: text/event-stream" http://localhost:3000/
+```
+
+A standalone example demonstrating this feature is available at [`packages/mcpresso/examples/dynamic-tools.ts`](./examples/dynamic-tools.ts).
+
+---
+
 ## 📁 Full Example
 
 A complete example showing most features is available at:

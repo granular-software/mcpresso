@@ -123,7 +123,8 @@ describe("MCPresso Simple End-to-End Tests", () => {
     it("should create and read users", async () => {
       // Create a user
       const createResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -138,28 +139,86 @@ describe("MCPresso Simple End-to-End Tests", () => {
         });
 
       expect(createResponse.status).toBe(200);
-      expect(users).toHaveLength(1);
-      expect(users[0].name).toBe("John Doe");
-      expect(users[0].email).toBe("john@example.com");
-
-      const userId = users[0].id;
+      const createdUser = JSON.parse(createResponse.body.result.content[0].text);
+      expect(createdUser.name).toBe("John Doe");
+      expect(createdUser.email).toBe("john@example.com");
 
       // Read the user
       const getResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
-          id: 2,
+          id: 1,
           method: "tools/call",
           params: {
             name: "get_user",
-            arguments: { id: userId },
+            arguments: { id: createdUser.id },
           },
         });
 
       expect(getResponse.status).toBe(200);
-      const userData = JSON.parse(getResponse.body.result.content[0].text);
-      expect(userData.name).toBe("John Doe");
+      const retrievedUser = JSON.parse(getResponse.body.result.content[0].text);
+      expect(retrievedUser.name).toBe("John Doe");
+      expect(retrievedUser.email).toBe("john@example.com");
+
+      // List users
+      const listResponse = await request(server)
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
+        .send({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "list_users",
+            arguments: {},
+          },
+        });
+
+      expect(listResponse.status).toBe(200);
+      const userList = JSON.parse(listResponse.body.result.content[0].text);
+      expect(userList).toHaveLength(1);
+      expect(userList[0].name).toBe("John Doe");
+
+      // Update the user
+      const updateResponse = await request(server)
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
+        .send({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "update_user",
+            arguments: {
+              id: createdUser.id,
+              name: "John Smith",
+            },
+          },
+        });
+
+      expect(updateResponse.status).toBe(200);
+      const updatedUser = JSON.parse(updateResponse.body.result.content[0].text);
+      expect(updatedUser.name).toBe("John Smith");
+
+      // Delete the user
+      const deleteResponse = await request(server)
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
+        .send({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "delete_user",
+            arguments: { id: createdUser.id },
+          },
+        });
+
+      expect(deleteResponse.status).toBe(200);
+      const deleteResult = JSON.parse(deleteResponse.body.result.content[0].text);
+      expect(deleteResult.success).toBe(true);
     });
 
     it("should list users", async () => {
@@ -170,13 +229,14 @@ describe("MCPresso Simple End-to-End Tests", () => {
       );
 
       const listResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
           method: "tools/call",
           params: {
-            name: "list_user",
+            name: "list_users",
             arguments: {},
           },
         });
@@ -193,7 +253,8 @@ describe("MCPresso Simple End-to-End Tests", () => {
       users.push({ id: "user-1", name: "John Doe", email: "john@example.com" });
 
       const updateResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -216,7 +277,8 @@ describe("MCPresso Simple End-to-End Tests", () => {
       users.push({ id: "user-1", name: "John Doe", email: "john@example.com" });
 
       const deleteResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -242,7 +304,8 @@ describe("MCPresso Simple End-to-End Tests", () => {
 
     it("should expose resource types", async () => {
       const listTypesResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -267,7 +330,8 @@ describe("MCPresso Simple End-to-End Tests", () => {
 
     it("should provide JSON schemas for types", async () => {
       const readTypeResponse = await request(server)
-        .post("/mcp")
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -294,7 +358,8 @@ describe("MCPresso Simple End-to-End Tests", () => {
 
     it("should handle invalid JSON-RPC requests", async () => {
       const response = await request(server)
-        .post("/mcp")
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -309,7 +374,8 @@ describe("MCPresso Simple End-to-End Tests", () => {
 
     it("should handle validation errors", async () => {
       const response = await request(server)
-        .post("/mcp")
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -335,19 +401,30 @@ describe("MCPresso Simple End-to-End Tests", () => {
       serverInstance = server.listen(0);
     });
 
-    it("should reject GET requests to MCP endpoint", async () => {
-      const response = await request(server).get("/mcp");
-      expect(response.status).toBe(405);
+    it("should accept GET requests to MCP endpoint for SSE", async () => {
+      const response = await request(server)
+        .get("/")
+        .set("Accept", "text/event-stream");
+      
+      // GET requests with proper Accept header should be accepted
+      expect(response.status).toBe(200);
+      expect(response.headers["content-type"]).toContain("text/event-stream");
     });
 
-    it("should reject DELETE requests to MCP endpoint", async () => {
-      const response = await request(server).delete("/mcp");
-      expect(response.status).toBe(405);
+    it("should reject GET requests without proper Accept header", async () => {
+      const response = await request(server).get("/");
+      expect(response.status).toBe(406); // Not Acceptable
+    });
+
+    it("should accept DELETE requests to MCP endpoint", async () => {
+      const response = await request(server).delete("/");
+      expect(response.status).toBe(200);
     });
 
     it("should accept POST requests to MCP endpoint", async () => {
       const response = await request(server)
-        .post("/mcp")
+        .post("/")
+        .set("Accept", "application/json, text/event-stream")
         .send({
           jsonrpc: "2.0",
           id: 1,
@@ -356,6 +433,12 @@ describe("MCPresso Simple End-to-End Tests", () => {
         });
 
       expect(response.status).toBe(200);
+    });
+
+    it("should reject unsupported HTTP methods", async () => {
+      const response = await request(server).put("/");
+      expect(response.status).toBe(405);
+      expect(response.body.message).toContain("Only POST, GET, and DELETE requests are allowed");
     });
   });
 
@@ -367,10 +450,10 @@ describe("MCPresso Simple End-to-End Tests", () => {
 
     it("should handle CORS preflight requests", async () => {
       const response = await request(server)
-        .options("/mcp")
+        .options("/")
         .set("Origin", "http://localhost:3000")
         .set("Access-Control-Request-Method", "POST")
-        .set("Access-Control-Request-Headers", "Content-Type");
+        .set("Access-Control-Request-Headers", "Content-Type, mcp-session-id, accept, last-event-id");
 
       expect(response.status).toBe(200);
       expect(response.headers["access-control-allow-origin"]).toBeDefined();

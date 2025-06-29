@@ -1,34 +1,35 @@
-import express from 'express';
-import cors from 'cors';
-import rateLimit from 'express-rate-limit';
-import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import type { Express, Request, Response } from 'express';
-import type { CallToolResult, ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
-import { type AuthConfig, createAuthMiddleware } from './auth.js';
+import express from "express";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { McpServer, ResourceTemplate, type RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { Express, Request, Response } from "express";
+import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import { type AuthConfig, createAuthMiddleware } from "./auth.js";
+import { randomUUID } from "crypto";
 
 /**
  * Configuration for exponential back-off retries on handler failures.
  */
 export interface RetryConfig {
-  /** The maximum number of retry attempts.
-   * @default 3
-   */
-  retries?: number;
-  /** The exponential factor to use.
-   * @default 2
-   */
-  factor?: number;
-  /** The minimum (initial) timeout in milliseconds.
-   * @default 1000
-   */
-  minTimeout?: number;
-  /** The maximum timeout in milliseconds.
-   * @default 30000
-   */
-  maxTimeout?: number;
+	/** The maximum number of retry attempts.
+	 * @default 3
+	 */
+	retries?: number;
+	/** The exponential factor to use.
+	 * @default 2
+	 */
+	factor?: number;
+	/** The minimum (initial) timeout in milliseconds.
+	 * @default 1000
+	 */
+	minTimeout?: number;
+	/** The maximum timeout in milliseconds.
+	 * @default 30000
+	 */
+	maxTimeout?: number;
 }
 
 /**
@@ -36,72 +37,93 @@ export interface RetryConfig {
  * Uses `express-rate-limit`.
  */
 export interface RateLimitConfig {
-  /** The time window in milliseconds.
-   * @default 900000 (15 minutes)
-   */
-  windowMs?: number;
-  /** The maximum number of requests to allow from an IP within the window.
-   * @default 100
-   */
-  limit?: number;
-  /**
-   * Whether to send `RateLimit` and `RateLimit-Policy` headers.
-   * Can be a boolean or a specific draft version.
-   * @see https://www.npmjs.com/package/express-rate-limit#standardheaders
-   * @default true
-   */
-  standardHeaders?: boolean | 'draft-6' | 'draft-7';
-  /**
-   * Whether to send legacy `X-RateLimit-*` headers.
-   * @default false
-   */
-  legacyHeaders?: boolean;
+	/** The time window in milliseconds.
+	 * @default 900000 (15 minutes)
+	 */
+	windowMs?: number;
+	/** The maximum number of requests to allow from an IP within the window.
+	 * @default 100
+	 */
+	limit?: number;
+	/**
+	 * Whether to send `RateLimit` and `RateLimit-Policy` headers.
+	 * Can be a boolean or a specific draft version.
+	 * @see https://www.npmjs.com/package/express-rate-limit#standardheaders
+	 * @default true
+	 */
+	standardHeaders?: boolean | "draft-6" | "draft-7";
+	/**
+	 * Whether to send legacy `X-RateLimit-*` headers.
+	 * @default false
+	 */
+	legacyHeaders?: boolean;
 }
 
 /**
  * Server metadata that can be exposed as an MCP resource.
  */
 export interface ServerMetadata {
-  /** The name of the server. */
-  name: string;
-  /** The version of the server. */
-  version: string;
-  /** A description of the server. */
-  description?: string;
-  /** The canonical URL of the server. */
-  url?: string;
-  /** Contact information for the server maintainers. */
-  contact?: {
-    name?: string;
-    email?: string;
-    url?: string;
-  };
-  /** License information. */
-  license?: {
-    name: string;
-    url?: string;
-  };
-  /** Available resources and their descriptions. */
-  resources?: Array<{
-    name: string;
-    description?: string;
-    methods: string[];
-  }>;
-  /** Server capabilities and features. */
-  capabilities?: {
-    authentication?: boolean;
-    rateLimiting?: boolean;
-    retries?: boolean;
-    streaming?: boolean;
-  };
+	/** The name of the server. */
+	name: string;
+	/** The version of the server. */
+	version: string;
+	/** A description of the server. */
+	description?: string;
+	/** The canonical URL of the server. */
+	url?: string;
+	/** Contact information for the server maintainers. */
+	contact?: {
+		name?: string;
+		email?: string;
+		url?: string;
+	};
+	/** License information. */
+	license?: {
+		name: string;
+		url?: string;
+	};
+	/** Available resources and their descriptions. */
+	resources?: Array<{
+		name: string;
+		description?: string;
+		methods: string[];
+	}>;
+	/** Server capabilities and features. */
+	capabilities?: {
+		authentication?: boolean;
+		rateLimiting?: boolean;
+		retries?: boolean;
+		streaming?: boolean;
+	};
+}
+
+/**
+ * Configuration for dynamic tools management.
+ */
+export interface DynamicToolsConfig {
+	/** Whether to enable dynamic tools management. */
+	enabled?: boolean;
+	/** Minimum interval between tool changes in milliseconds. */
+	minInterval?: number;
+	/** Maximum interval between tool changes in milliseconds. */
+	maxInterval?: number;
+	/** Maximum number of dynamic tools to maintain. */
+	maxTools?: number;
+	/** List of tool names that can be dynamically added/removed. */
+	availableTools?: Array<{
+		name: string;
+		description: string;
+		inputSchema: z.ZodObject<any>;
+		handler: (args: any) => Promise<any>;
+	}>;
 }
 
 // --- Core Method and Resource Configuration ---
 
 /** Represents a relationship to another resource type. */
 interface Relation {
-  /** The name of the resource type being referenced. */
-  type: string;
+	/** The name of the resource type being referenced. */
+	type: string;
 }
 
 /**
@@ -110,59 +132,36 @@ interface Relation {
  * @internal
  */
 interface Method {
-  description: string;
-  inputSchema: z.ZodObject<any, any, any>;
-  outputSchema: z.ZodTypeAny;
-  handler: (args: any) => Promise<any>;
-  // A flag to indicate if the output should be enriched with URIs.
-  returnsResourceList?: boolean;
+	description: string;
+	inputSchema: z.ZodObject<any, any, any>;
+	outputSchema: z.ZodTypeAny;
+	handler: (args: any) => Promise<any>;
+	// A flag to indicate if the output should be enriched with URIs.
+	returnsResourceList?: boolean;
 }
 
 /**
  * A user-defined method. The `createResource` factory uses this to build
  * the final `Method` configuration.
  */
-export type MethodDefinition<
-  TInput extends z.ZodObject<any, any, any> | z.ZodTypeAny,
-  TOutput,
-> = {
-  description?: string;
-  inputSchema?: TInput;
-  outputSchema?: z.ZodType<TOutput>;
-  handler: (
-    args: TInput extends z.ZodTypeAny ? z.infer<TInput> : any,
-  ) => Promise<TOutput>;
+export type MethodDefinition<TInput extends z.ZodObject<any, any, any> | z.ZodTypeAny, TOutput> = {
+	description?: string;
+	inputSchema?: TInput;
+	outputSchema?: z.ZodType<TOutput>;
+	handler: (args: TInput extends z.ZodTypeAny ? z.infer<TInput> : any) => Promise<TOutput>;
 };
 
 // --- Specialized Method Definitions for Automatic Schema Inference ---
 
-type CreateMethod<T extends z.ZodObject<any>> = Omit<
-  MethodDefinition<z.ZodObject<Omit<T['shape'], 'id' | 'createdAt' | 'updatedAt'>>, z.infer<T>>,
-  'inputSchema' | 'outputSchema'
->;
+type CreateMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<Omit<T["shape"], "id" | "createdAt" | "updatedAt">>, z.infer<T>>, "inputSchema" | "outputSchema">;
 
-type UpdateMethod<T extends z.ZodObject<any>> = Omit<
-  MethodDefinition<
-    z.ZodObject<any>,
-    z.infer<T>
-  >,
-  'inputSchema' | 'outputSchema'
-> & { handler: (args: z.infer<ReturnType<T['partial']>> & {id: string}) => Promise<z.infer<T>> };
+type UpdateMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<any>, z.infer<T>>, "inputSchema" | "outputSchema"> & { handler: (args: z.infer<ReturnType<T["partial"]>> & { id: string }) => Promise<z.infer<T>> };
 
-type DeleteMethod<T extends z.ZodObject<any>> = Omit<
-  MethodDefinition<z.ZodObject<{ id: z.ZodString }>, { success: boolean }>,
-  'inputSchema' | 'outputSchema'
->;
+type DeleteMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<{ id: z.ZodString }>, { success: boolean }>, "inputSchema" | "outputSchema">;
 
-type ListMethod<T extends z.ZodObject<any>> = Omit<
-  MethodDefinition<z.ZodObject<{}>, z.infer<T>[]>,
-  'inputSchema' | 'outputSchema'
->;
+type ListMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<{}>, z.infer<T>[]>, "inputSchema" | "outputSchema">;
 
-type GetMethod<T extends z.ZodObject<any>> = MethodDefinition<
-  z.ZodObject<{ id: z.ZodString }>,
-  z.infer<T> | undefined
->;
+type GetMethod<T extends z.ZodObject<any>> = MethodDefinition<z.ZodObject<{ id: z.ZodString }>, z.infer<T> | undefined>;
 
 /**
  * The final, fully processed configuration for a resource.
@@ -170,12 +169,12 @@ type GetMethod<T extends z.ZodObject<any>> = MethodDefinition<
  * @internal
  */
 export interface ResourceConfig<T extends z.ZodObject<any, any, any>> {
-  name: string;
-  schema: T;
-  uri_template: string;
-  relations?: Partial<Record<keyof T['shape'], Relation>>;
-  get?: (args: { id: string }) => Promise<z.infer<T> | undefined>;
-  methods: Record<string, Method>;
+	name: string;
+	schema: T;
+	uri_template: string;
+	relations?: Partial<Record<keyof T["shape"], Relation>>;
+	get?: (args: { id: string }) => Promise<z.infer<T> | undefined>;
+	methods: Record<string, Method>;
 }
 
 /**
@@ -184,78 +183,80 @@ export interface ResourceConfig<T extends z.ZodObject<any, any, any>> {
  * @template T The main Zod schema for the resource.
  */
 export interface ResourceBlueprint<T extends z.ZodObject<any, any, any>> {
-  /** The singular, lowercase name of the resource (e.g., "note", "user"). */
-  name: string;
-  /** The Zod schema that defines the resource's data structure and validation rules. */
-  schema: T;
-  /**
-   * A URI template for generating unique URIs for each resource instance.
-   * Must include an `{id}` placeholder. Example: "notes/{id}".
-   */
-  uri_template: string;
-  /**
-   * Defines relationships to other resources. The keys must be fields in the schema.
-   * This is used to enrich the exposed type schemas with `$ref` links.
-   */
-  relations?: Partial<Record<keyof T['shape'], Relation>>;
+	/** The singular, lowercase name of the resource (e.g., "note", "user"). */
+	name: string;
+	/** The Zod schema that defines the resource's data structure and validation rules. */
+	schema: T;
+	/**
+	 * A URI template for generating unique URIs for each resource instance.
+	 * Must include an `{id}` placeholder. Example: "notes/{id}".
+	 */
+	uri_template: string;
+	/**
+	 * Defines relationships to other resources. The keys must be fields in the schema.
+	 * This is used to enrich the exposed type schemas with `$ref` links.
+	 */
+	relations?: Partial<Record<keyof T["shape"], Relation>>;
 
-  /**
-   * An object defining the tools (methods) for this resource.
-   * The library provides default schemas and descriptions for standard
-   * methods like `create`, `update`, `list`, and `delete`.
-   */
-  methods?: {
-    get?: Partial<GetMethod<T>>;
-    create?: Partial<CreateMethod<T>> & { inputSchema?: z.ZodObject<any> };
-    update?: Partial<UpdateMethod<T>> & { inputSchema?: z.ZodObject<any> };
-    delete?: Partial<DeleteMethod<T>>;
-    list?: Partial<ListMethod<T>>;
-    [key: string]: Partial<MethodDefinition<any, any>> | undefined;
-  };
+	/**
+	 * An object defining the tools (methods) for this resource.
+	 * The library provides default schemas and descriptions for standard
+	 * methods like `create`, `update`, `list`, and `delete`.
+	 */
+	methods?: {
+		get?: Partial<GetMethod<T>>;
+		create?: Partial<CreateMethod<T>> & { inputSchema?: z.ZodObject<any> };
+		update?: Partial<UpdateMethod<T>> & { inputSchema?: z.ZodObject<any> };
+		delete?: Partial<DeleteMethod<T>>;
+		list?: Partial<ListMethod<T>>;
+		[key: string]: Partial<MethodDefinition<any, any>> | undefined;
+	};
 }
 
 /** Configuration for the main MCP server. */
 export interface MCPServerConfig {
-  /** The name of the server, used in resource URIs. */
-  name: string;
-  /** The public-facing canonical URL of this server. Used for authentication (as audience) and in resource URIs. */
-  serverUrl?: string;
-  /**
-   * An array of resource configurations.
-   * This is now an array of the fully processed `ResourceConfig` objects.
-   */
-  resources: ResourceConfig<any>[];
-  /**
-   * If `true`, exposes JSON schemas for all resources.
-   * If an array is provided, exposes schemas only for those resources.
-   * This is crucial for enabling language models to understand the server's data model.
-   */
-  exposeTypes?: boolean | ResourceConfig<any>[];
-  /** Optional configuration to enable OAuth 2.1 authentication. */
-  auth?: AuthConfig;
-  /** Optional configuration for exponential back-off retry on handler failures. */
-  retry?: RetryConfig;
-  /** Optional configuration for rate limiting. */
-  rateLimit?: RateLimitConfig;
-  /** Optional server metadata to expose as an MCP resource. */
-  serverMetadata?: ServerMetadata;
+	/** The name of the server, used in resource URIs. */
+	name: string;
+	/** The public-facing canonical URL of this server. Used for authentication (as audience) and in resource URIs. */
+	serverUrl?: string;
+	/**
+	 * An array of resource configurations.
+	 * This is now an array of the fully processed `ResourceConfig` objects.
+	 */
+	resources: ResourceConfig<any>[];
+	/**
+	 * If `true`, exposes JSON schemas for all resources.
+	 * If an array is provided, exposes schemas only for those resources.
+	 * This is crucial for enabling language models to understand the server's data model.
+	 */
+	exposeTypes?: boolean | ResourceConfig<any>[];
+	/** Optional configuration to enable OAuth 2.1 authentication. */
+	auth?: AuthConfig;
+	/** Optional configuration for exponential back-off retry on handler failures. */
+	retry?: RetryConfig;
+	/** Optional configuration for rate limiting. */
+	rateLimit?: RateLimitConfig;
+	/** Optional server metadata to expose as an MCP resource. */
+	serverMetadata?: ServerMetadata;
+	/** Optional configuration for dynamic tools management. */
+	// dynamicTools?: DynamicToolsConfig;
 }
 
 // --- Type Definitions for Exposed Types ---
 // These are internal types used for structuring the exposed schema information.
 
 interface TypeField {
-  name: string;
-  type: string;
-  description?: string;
-  relation?: string;
+	name: string;
+	type: string;
+	description?: string;
+	relation?: string;
 }
 
 interface TypeResource {
-  name: string;
-  description?: string;
-  fields: TypeField[];
-  related_tools: string[];
+	name: string;
+	description?: string;
+	fields: TypeField[];
+	related_tools: string[];
 }
 
 // --- Helper Functions ---
@@ -265,36 +266,31 @@ interface TypeResource {
  * This is used to connect related resource types in the exposed schemas.
  * @internal
  */
-function applyRelationsToJsonSchema(
-    jsonSchema: any,
-    zodSchema: z.ZodObject<any>,
-    relations: Partial<Record<string, Relation>> | undefined,
-    serverName: string
-) {
-    if (!relations || !('properties' in jsonSchema)) {
-        return jsonSchema;
-    }
+function applyRelationsToJsonSchema(jsonSchema: any, zodSchema: z.ZodObject<any>, relations: Partial<Record<string, Relation>> | undefined, serverName: string) {
+	if (!relations || !("properties" in jsonSchema)) {
+		return jsonSchema;
+	}
 
-    const newProperties = { ...jsonSchema.properties };
+	const newProperties = { ...jsonSchema.properties };
 
-    for (const fieldName in relations) {
-        if (newProperties[fieldName]) {
-            const relation = relations[fieldName];
-            if (relation) {
-                const relatedResourceName = relation.type;
-                const ref = `type://${serverName}/${relatedResourceName}`;
-                const fieldZodDef = zodSchema.shape[fieldName];
+	for (const fieldName in relations) {
+		if (newProperties[fieldName]) {
+			const relation = relations[fieldName];
+			if (relation) {
+				const relatedResourceName = relation.type;
+				const ref = `type://${serverName}/${relatedResourceName}`;
+				const fieldZodDef = zodSchema.shape[fieldName];
 
-                if (fieldZodDef instanceof z.ZodArray) {
-                    newProperties[fieldName].items = { $ref: ref };
-                } else {
-                    newProperties[fieldName] = { $ref: ref };
-                }
-            }
-        }
-    }
+				if (fieldZodDef instanceof z.ZodArray) {
+					newProperties[fieldName].items = { $ref: ref };
+				} else {
+					newProperties[fieldName] = { $ref: ref };
+				}
+			}
+		}
+	}
 
-    return { ...jsonSchema, properties: newProperties };
+	return { ...jsonSchema, properties: newProperties };
 }
 
 /**
@@ -302,33 +298,28 @@ function applyRelationsToJsonSchema(
  * @internal
  */
 async function withRetry<T>(fn: () => Promise<T>, retryConfig?: RetryConfig): Promise<T> {
-  if (!retryConfig) {
-    return fn();
-  }
+	if (!retryConfig) {
+		return fn();
+	}
 
-  // Set defaults for retry configuration
-  const {
-    retries = 3,
-    factor = 2,
-    minTimeout = 1000,
-    maxTimeout = 30000,
-  } = retryConfig;
+	// Set defaults for retry configuration
+	const { retries = 3, factor = 2, minTimeout = 1000, maxTimeout = 30000 } = retryConfig;
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      if (attempt === retries) {
-        console.error(`Handler failed after ${retries + 1} attempts.`, error);
-        throw error;
-      }
-      const timeout = Math.min(minTimeout * Math.pow(factor, attempt), maxTimeout);
-      console.log(`Attempt ${attempt + 1} failed. Retrying in ${timeout}ms...`);
-      await new Promise(resolve => setTimeout(resolve, timeout));
-    }
-  }
-  // This line should be unreachable
-  throw new Error('Exhausted retry attempts');
+	for (let attempt = 0; attempt <= retries; attempt++) {
+		try {
+			return await fn();
+		} catch (error) {
+			if (attempt === retries) {
+				console.error(`Handler failed after ${retries + 1} attempts.`, error);
+				throw error;
+			}
+			const timeout = Math.min(minTimeout * Math.pow(factor, attempt), maxTimeout);
+			console.log(`Attempt ${attempt + 1} failed. Retrying in ${timeout}ms...`);
+			await new Promise((resolve) => setTimeout(resolve, timeout));
+		}
+	}
+	// This line should be unreachable
+	throw new Error("Exhausted retry attempts");
 }
 
 /**
@@ -336,21 +327,20 @@ async function withRetry<T>(fn: () => Promise<T>, retryConfig?: RetryConfig): Pr
  * Properties marked with .readonly() are excluded from create/update operations.
  */
 function extractEditableProperties<T extends z.ZodObject<any, any, any>>(schema: T): z.ZodObject<any> {
-  const shape = schema.shape;
-  const editableShape: Record<string, z.ZodTypeAny> = {};
-  
-  for (const [key, value] of Object.entries(shape) as [string, z.ZodTypeAny][]) {
-    // Check if the property is readonly by examining the Zod type
-    // This is a heuristic - we look for the _def property that indicates readonly
-    const isReadonly = (value as any)._def?.typeName === 'ZodReadonly' || 
-                      (value as any)._def?.innerType?._def?.typeName === 'ZodReadonly';
-    
-    if (!isReadonly) {
-      editableShape[key] = value;
-    }
-  }
-  
-  return z.object(editableShape);
+	const shape = schema.shape;
+	const editableShape: Record<string, z.ZodTypeAny> = {};
+
+	for (const [key, value] of Object.entries(shape) as [string, z.ZodTypeAny][]) {
+		// Check if the property is readonly by examining the Zod type
+		// This is a heuristic - we look for the _def property that indicates readonly
+		const isReadonly = (value as any)._def?.typeName === "ZodReadonly" || (value as any)._def?.innerType?._def?.typeName === "ZodReadonly";
+
+		if (!isReadonly) {
+			editableShape[key] = value;
+		}
+	}
+
+	return z.object(editableShape);
 }
 
 /**
@@ -358,19 +348,19 @@ function extractEditableProperties<T extends z.ZodObject<any, any, any>>(schema:
  * Excludes readonly properties and common server-managed fields.
  */
 function createCreateSchema<T extends z.ZodObject<any, any, any>>(schema: T): z.ZodObject<any> {
-  const editableSchema = extractEditableProperties(schema);
-  
-  // Also exclude common server-managed fields that shouldn't be in create operations
-  const serverManagedFields = ['id', 'createdAt', 'updatedAt'];
-  const createShape: Record<string, z.ZodTypeAny> = {};
-  
-  for (const [key, value] of Object.entries(editableSchema.shape) as [string, z.ZodTypeAny][]) {
-    if (!serverManagedFields.includes(key)) {
-      createShape[key] = value;
-    }
-  }
-  
-  return z.object(createShape);
+	const editableSchema = extractEditableProperties(schema);
+
+	// Also exclude common server-managed fields that shouldn't be in create operations
+	const serverManagedFields = ["id", "createdAt", "updatedAt"];
+	const createShape: Record<string, z.ZodTypeAny> = {};
+
+	for (const [key, value] of Object.entries(editableSchema.shape) as [string, z.ZodTypeAny][]) {
+		if (!serverManagedFields.includes(key)) {
+			createShape[key] = value;
+		}
+	}
+
+	return z.object(createShape);
 }
 
 /**
@@ -378,22 +368,272 @@ function createCreateSchema<T extends z.ZodObject<any, any, any>>(schema: T): z.
  * Excludes readonly properties but allows partial updates.
  */
 function createUpdateSchema<T extends z.ZodObject<any, any, any>>(schema: T): z.ZodObject<any> {
-  const editableSchema = extractEditableProperties(schema);
-  
-  // Make all editable properties optional for updates
-  const updateShape: Record<string, z.ZodTypeAny> = {};
-  
-  for (const [key, value] of Object.entries(editableSchema.shape) as [string, z.ZodTypeAny][]) {
-    // Don't make id optional as it's required for updates
-    if (key === 'id') {
-      updateShape[key] = value;
-    } else {
-      updateShape[key] = value.optional();
-    }
-  }
-  
-  return z.object(updateShape);
+	const editableSchema = extractEditableProperties(schema);
+
+	// Make all editable properties optional for updates
+	const updateShape: Record<string, z.ZodTypeAny> = {};
+
+	for (const [key, value] of Object.entries(editableSchema.shape) as [string, z.ZodTypeAny][]) {
+		// Don't make id optional as it's required for updates
+		if (key === "id") {
+			updateShape[key] = value;
+		} else {
+			updateShape[key] = value.optional();
+		}
+	}
+
+	return z.object(updateShape);
 }
+
+/**
+ * Manages dynamic tools that can be added and removed at runtime.
+ * Sends notifications when the tools list changes.
+ */
+// class DynamicToolsManager {
+// 	private server: McpServer;
+// 	private config: DynamicToolsConfig;
+// 	private activeTools: Set<string> = new Set();
+// 	private registeredTools: Set<string> = new Set();
+// 	private registeredToolObjects: Map<string, RegisteredTool> = new Map();
+// 	private intervalId?: NodeJS.Timeout;
+// 	private toolCounter = 0;
+
+// 	constructor(server: McpServer, config: DynamicToolsConfig) {
+// 		this.server = server;
+// 		this.config = {
+// 			enabled: false,
+// 			minInterval: 10000, // 10 seconds
+// 			maxInterval: 30000, // 30 seconds
+// 			maxTools: 5,
+// 			availableTools: [
+// 				{
+// 					name: "dynamic_ping",
+// 					description: "A dynamic ping tool that responds with a timestamp",
+// 					inputSchema: z.object({}),
+// 					handler: async () => ({ message: "pong", timestamp: new Date().toISOString() }),
+// 				},
+// 				{
+// 					name: "dynamic_echo",
+// 					description: "A dynamic echo tool that repeats the input",
+// 					inputSchema: z.object({ message: z.string() }),
+// 					handler: async (args: { message: string }) => ({ echoed: args.message, timestamp: new Date().toISOString() }),
+// 				},
+// 				{
+// 					name: "dynamic_random",
+// 					description: "A dynamic tool that generates random numbers",
+// 					inputSchema: z.object({ min: z.number().optional(), max: z.number().optional() }),
+// 					handler: async (args: { min?: number; max?: number }) => {
+// 						const min = args.min ?? 1;
+// 						const max = args.max ?? 100;
+// 						return { random: Math.floor(Math.random() * (max - min + 1)) + min };
+// 					},
+// 				},
+// 				{
+// 					name: "dynamic_weather",
+// 					description: "A dynamic weather tool that simulates weather data",
+// 					inputSchema: z.object({ city: z.string() }),
+// 					handler: async (args: { city: string }) => ({
+// 						city: args.city,
+// 						temperature: Math.floor(Math.random() * 30) + 10,
+// 						condition: ["sunny", "cloudy", "rainy", "snowy"][Math.floor(Math.random() * 4)],
+// 						timestamp: new Date().toISOString(),
+// 					}),
+// 				},
+// 				{
+// 					name: "dynamic_calculator",
+// 					description: "A dynamic calculator tool",
+// 					inputSchema: z.object({ operation: z.enum(["add", "subtract", "multiply", "divide"]), a: z.number(), b: z.number() }),
+// 					handler: async (args: { operation: string; a: number; b: number }) => {
+// 						let result: number;
+// 						switch (args.operation) {
+// 							case "add": result = args.a + args.b; break;
+// 							case "subtract": result = args.a - args.b; break;
+// 							case "multiply": result = args.a * args.b; break;
+// 							case "divide": result = args.a / args.b; break;
+// 							default: throw new Error("Invalid operation");
+// 						}
+// 						return { result, operation: args.operation, a: args.a, b: args.b };
+// 					},
+// 				},
+// 			],
+// 			...config,
+// 		};
+// 	}
+
+// 	/**
+// 	 * Starts the dynamic tools manager.
+// 	 */
+// 	start() {
+// 		if (!this.config.enabled || this.intervalId) {
+// 			return;
+// 		}
+
+// 		console.log("🚀 Starting dynamic tools manager...");
+// 		this.scheduleNextChange();
+// 	}
+
+// 	/**
+// 	 * Stops the dynamic tools manager.
+// 	 */
+// 	stop() {
+// 		if (this.intervalId) {
+// 			clearTimeout(this.intervalId);
+// 			this.intervalId = undefined;
+// 			console.log("🛑 Stopped dynamic tools manager");
+// 		}
+// 	}
+
+// 	/**
+// 	 * Schedules the next tool change.
+// 	 */
+// 	private scheduleNextChange() {
+// 		const interval = Math.random() * (this.config.maxInterval! - this.config.minInterval!) + this.config.minInterval!;
+// 		this.intervalId = setTimeout(() => {
+// 			this.performRandomChange();
+// 			this.scheduleNextChange();
+// 		}, interval);
+// 	}
+
+// 	/**
+// 	 * Performs a random tool change (add or remove).
+// 	 */
+// 	private performRandomChange() {
+// 		const shouldAdd = Math.random() > 0.5;
+		
+// 		if (shouldAdd && this.activeTools.size < this.config.maxTools!) {
+// 			this.addRandomTool();
+// 		} else if (this.activeTools.size > 0) {
+// 			this.removeRandomTool();
+// 		}
+// 	}
+
+// 	/**
+// 	 * Adds a random tool from the available tools.
+// 	 */
+// 	private addRandomTool() {
+// 		const availableTools = this.config.availableTools!;
+// 		const availableForAddition = availableTools.filter(tool => !this.activeTools.has(tool.name));
+		
+// 		if (availableForAddition.length === 0) {
+// 			return;
+// 		}
+
+// 		const toolToAdd = availableForAddition[Math.floor(Math.random() * availableForAddition.length)];
+// 		this.addTool(toolToAdd);
+// 	}
+
+// 	/**
+// 	 * Removes a random active tool.
+// 	 */
+// 	private removeRandomTool() {
+// 		const activeToolsArray = Array.from(this.activeTools);
+// 		const toolToRemove = activeToolsArray[Math.floor(Math.random() * activeToolsArray.length)];
+// 		this.removeTool(toolToRemove);
+// 	}
+
+// 	/**
+// 	 * Adds a specific tool.
+// 	 */
+// 	private addTool(toolDef: { name: string; description: string; inputSchema: z.ZodObject<any>; handler: (args: any) => Promise<any> }) {
+// 		if (this.activeTools.has(toolDef.name)) {
+// 			return;
+// 		}
+
+// 		// Only register the tool if it hasn't been registered before
+// 		if (!this.registeredTools.has(toolDef.name)) {
+// 			const reg = this.server.tool(toolDef.name, toolDef.description, toolDef.inputSchema.shape, async (args: any) => {
+// 				const result = await toolDef.handler(args);
+// 				return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+// 			});
+// 			this.registeredTools.add(toolDef.name);
+// 			this.registeredToolObjects.set(toolDef.name, reg);
+// 		} else {
+// 			// If it was registered before, just re-enable it
+// 			const reg = this.registeredToolObjects.get(toolDef.name);
+// 			if (reg) {
+// 				reg.enabled = true;
+// 			}
+// 		}
+
+// 		this.activeTools.add(toolDef.name);
+// 		console.log(`➕ Added dynamic tool: ${toolDef.name}`);
+		
+// 		// Send notification about tools list change
+// 		this.sendToolsListChangedNotification();
+// 	}
+
+// 	/**
+// 	 * Removes a specific tool.
+// 	 */
+// 	private removeTool(toolName: string) {
+// 		if (!this.activeTools.has(toolName)) {
+// 			return;
+// 		}
+
+// 		this.activeTools.delete(toolName);
+// 		const reg = this.registeredToolObjects.get(toolName);
+// 		if (reg) {
+// 			reg.enabled = false; // hide from tools/list
+// 		}
+// 		console.log(`➖ Removed dynamic tool: ${toolName}`);
+		
+// 		// Send notification about tools list change
+// 		this.sendToolsListChangedNotification();
+// 	}
+
+// 	/**
+// 	 * Sends a notification that the tools list has changed.
+// 	 * Note: Due to the current transport architecture (new transport per request),
+// 	 * notifications are logged but may not reach clients immediately.
+// 	 * Clients should periodically call tools/list to get the current state.
+// 	 */
+// 	private sendToolsListChangedNotification() {
+// 		try {
+// 			// Log the notification for debugging
+// 			console.log(`📡 Tools list changed notification (active tools: ${Array.from(this.activeTools).join(", ")})`);
+// 			console.log(`💡 Note: Due to transport architecture, clients should call 'tools/list' to get updated tool list`);
+			
+// 			// Try to send through the server if connected
+// 			if (this.server.isConnected()) {
+// 				try {
+// 					this.server.sendToolListChanged();
+// 				} catch (err: any) {
+// 					if (err?.code === "ERR_STREAM_WRITE_AFTER_END") {
+// 						console.warn("🔕 SSE stream already closed. Skipping notification.");
+// 					} else {
+// 						throw err;
+// 					}
+// 				}
+// 			}
+// 		} catch (error) {
+// 			console.warn("Failed to send tools list changed notification:", error);
+// 		}
+// 	}
+
+// 	/**
+// 	 * Gets the current list of active dynamic tools.
+// 	 */
+// 	getActiveTools(): string[] {
+// 		return Array.from(this.activeTools);
+// 	}
+
+// 	/**
+// 	 * Manually adds a tool by name.
+// 	 */
+// 	manuallyAddTool(toolName: string) {
+// 		const toolDef = this.config.availableTools!.find(t => t.name === toolName);
+// 		if (toolDef) {
+// 			this.addTool(toolDef);
+// 		}
+// 	}
+
+// 	/**
+// 	 * Manually removes a tool by name.
+// 	 */
+// 	manuallyRemoveTool(toolName: string) {
+// 		this.removeTool(toolName);
+// 	}
+// }
 
 // --- Core Implementation ---
 
@@ -403,77 +643,75 @@ function createUpdateSchema<T extends z.ZodObject<any, any, any>>(schema: T): z.
  * @param config The resource configuration.
  * @returns The validated resource configuration object.
  */
-export function createResource<T extends z.ZodObject<any, any, any>>(
-  blueprint: ResourceBlueprint<T>
-): ResourceConfig<T> {
-  const { name, schema, methods: methodBlueprints } = blueprint;
-  const processedMethods: Record<string, Method> = {};
-  let getHandler: ((args: { id: string; }) => Promise<z.infer<T> | undefined>) | undefined;
+export function createResource<T extends z.ZodObject<any, any, any>>(blueprint: ResourceBlueprint<T>): ResourceConfig<T> {
+	const { name, schema, methods: methodBlueprints } = blueprint;
+	const processedMethods: Record<string, Method> = {};
+	let getHandler: ((args: { id: string }) => Promise<z.infer<T> | undefined>) | undefined;
 
-  if (methodBlueprints) {
-    // Handle the 'get' method as a special case first.
-    if (methodBlueprints.get?.handler) {
-      getHandler = methodBlueprints.get.handler as any;
-      // Don't delete it - we'll process it as a regular method too
-    }
+	if (methodBlueprints) {
+		// Handle the 'get' method as a special case first.
+		if (methodBlueprints.get?.handler) {
+			getHandler = methodBlueprints.get.handler as any;
+			// Don't delete it - we'll process it as a regular method too
+		}
 
-    for (const methodName in methodBlueprints) {
-      const methodDef = methodBlueprints[methodName as keyof typeof methodBlueprints] as any;
-      if (!methodDef?.handler) continue;
+		for (const methodName in methodBlueprints) {
+			const methodDef = methodBlueprints[methodName as keyof typeof methodBlueprints] as any;
+			if (!methodDef?.handler) continue;
 
-      let { description, inputSchema, outputSchema, handler } = methodDef;
-      let returnsResourceList = false;
+			let { description, inputSchema, outputSchema, handler } = methodDef;
+			let returnsResourceList = false;
 
-      // Apply defaults for standard methods
-      switch (methodName) {
-        case 'get':
-          description ??= `Get a ${name} by its ID.`;
-          inputSchema ??= z.object({ id: z.string() });
-          outputSchema ??= schema.optional();
-          break;
-        case 'create':
-          description ??= `Create a new ${name}.`;
-          inputSchema ??= createCreateSchema(schema);
-          outputSchema ??= schema;
-          break;
-        case 'update':
-          description ??= `Update an existing ${name}.`;
-          inputSchema ??= createUpdateSchema(schema);
-          outputSchema ??= schema;
-          break;
-        case 'delete':
-          description ??= `Delete a ${name} by its ID.`;
-          inputSchema ??= z.object({ id: z.string() });
-          outputSchema ??= z.object({ success: z.boolean() });
-          break;
-        case 'list':
-          description ??= `List all ${name}s.`;
-          inputSchema ??= z.object({});
-          outputSchema ??= z.array(schema);
-          returnsResourceList = true;
-          break;
-        default: // Custom method or search
-          if (!description) throw new Error(`Method '${methodName}' for resource '${name}' must have a description.`);
-          if (!inputSchema) throw new Error(`Method '${methodName}' for resource '${name}' must have an inputSchema.`);
-          outputSchema ??= z.any();
-          if (methodName === 'search' || (outputSchema instanceof z.ZodArray && outputSchema.element === schema)) {
-            returnsResourceList = true;
-          }
-          break;
-      }
-      
-      processedMethods[methodName] = { description, inputSchema, outputSchema, handler, returnsResourceList };
-    }
-  }
+			// Apply defaults for standard methods
+			switch (methodName) {
+				case "get":
+					description ??= `Get a ${name} by its ID.`;
+					inputSchema ??= z.object({ id: z.string() });
+					outputSchema ??= schema.optional();
+					break;
+				case "create":
+					description ??= `Create a new ${name}.`;
+					inputSchema ??= createCreateSchema(schema);
+					outputSchema ??= schema;
+					break;
+				case "update":
+					description ??= `Update an existing ${name}.`;
+					inputSchema ??= createUpdateSchema(schema);
+					outputSchema ??= schema;
+					break;
+				case "delete":
+					description ??= `Delete a ${name} by its ID.`;
+					inputSchema ??= z.object({ id: z.string() });
+					outputSchema ??= z.object({ success: z.boolean() });
+					break;
+				case "list":
+					description ??= `List all ${name}s.`;
+					inputSchema ??= z.object({});
+					outputSchema ??= z.array(schema);
+					returnsResourceList = true;
+					break;
+				default: // Custom method or search
+					if (!description) throw new Error(`Method '${methodName}' for resource '${name}' must have a description.`);
+					if (!inputSchema) throw new Error(`Method '${methodName}' for resource '${name}' must have an inputSchema.`);
+					outputSchema ??= z.any();
+					if (methodName === "search" || (outputSchema instanceof z.ZodArray && outputSchema.element === schema)) {
+						returnsResourceList = true;
+					}
+					break;
+			}
 
-  return {
-    name: blueprint.name,
-    schema: blueprint.schema,
-    uri_template: blueprint.uri_template,
-    relations: blueprint.relations,
-    get: getHandler,
-    methods: processedMethods,
-  };
+			processedMethods[methodName] = { description, inputSchema, outputSchema, handler, returnsResourceList };
+		}
+	}
+
+	return {
+		name: blueprint.name,
+		schema: blueprint.schema,
+		uri_template: blueprint.uri_template,
+		relations: blueprint.relations,
+		get: getHandler,
+		methods: processedMethods,
+	};
 }
 
 /**
@@ -482,229 +720,323 @@ export function createResource<T extends z.ZodObject<any, any, any>>(
  * @returns An Express application instance.
  */
 export function createMCPServer(config: MCPServerConfig): Express {
-    const app = express();
-    app.use(cors());
-    app.use(express.json());
+	const app = express();
+	// app.use(cors());
+	app.use(express.json());
 
-    // Add rate limiting if configured
-    if (config.rateLimit) {
-        const limiter = rateLimit({
-            windowMs: config.rateLimit.windowMs,
-            limit: config.rateLimit.limit,
-            standardHeaders: config.rateLimit.standardHeaders,
+	app.use(
+		cors({
+			origin: ["*"],
+			exposedHeaders: ["mcp-session-id"],
+			allowedHeaders: ["Content-Type", "mcp-session-id", "accept", "last-event-id"],
+		}),
+	);
+
+	// Add rate limiting if configured
+	if (config.rateLimit) {
+		const limiter = rateLimit({
+			windowMs: config.rateLimit.windowMs,
+			limit: config.rateLimit.limit,
+			standardHeaders: config.rateLimit.standardHeaders,
 			legacyHeaders: config.rateLimit.legacyHeaders,
-        });
-        app.use(limiter);
-    }
+		});
+		app.use(limiter);
+	}
 
-    if (config.auth) {
-        app.get('/.well-known/oauth-protected-resource-metadata', (req, res) => {
-            if (!config.auth) return res.status(500).send('Auth not configured');
-            res.json({
-                resource: config.serverUrl,
-                authorization_servers: [config.auth.issuer],
-            });
-        });
-    }
+	if (config.auth) {
+		app.get("/.well-known/oauth-protected-resource-metadata", (req, res) => {
+			if (!config.auth) return res.status(500).send("Auth not configured");
+			res.json({
+				resource: config.serverUrl,
+				authorization_servers: [config.auth.issuer],
+			});
+		});
+	}
 
-    const authMiddleware = config.auth
-        ? createAuthMiddleware(config.auth, config.serverUrl ?? '')
-        : (req: Request, res: Response, next: express.NextFunction) => next();
+	const authMiddleware = config.auth ? createAuthMiddleware(config.auth, config.serverUrl ?? "") : (req: Request, res: Response, next: express.NextFunction) => next();
 
-    const server = new McpServer({
-        name: config.name,
-        version: '1.0.0',
-    }, {});
+	const server = new McpServer(
+		{
+			name: config.name,
+			version: "1.0.0",
+		},
+		{},
+	);
 
-    // --- Validation ---
-    // Before starting, validate that all declared relationships point to existing resources.
-    // This prevents runtime errors and ensures schema integrity.
-    const resourceNames = new Set(config.resources.map(r => r.name));
-    for (const resource of config.resources) {
-        const relations = resource.relations;
-        if (relations) {
-            for (const fieldName in relations) {
-                if (!resource.schema.shape[fieldName]) {
-                    throw new Error(`Configuration error in resource '${resource.name}': Relation field '${fieldName}' does not exist in the schema.`);
-                }
-                const relation = relations[fieldName as keyof typeof relations];
-                if (!relation) {
-                    continue;
-                }
-                const relatedResourceName = relation.type;
-                if (!resourceNames.has(relatedResourceName)) {
-                    throw new Error(`Configuration error in resource '${resource.name}': Related resource type '${relatedResourceName}' for field '${fieldName}' is not defined.`);
-                }
-            }
-        }
-    }
+	// Map to keep transports per session id
+	const sessionTransports = new Map<string, StreamableHTTPServerTransport>();
 
-    // --- Type Exposure ---
-    // If enabled, create special read-only resources that expose the JSON schema
-    // of other resources. This allows clients (and AI models) to discover the data model.
-    if (config.exposeTypes) {
-        const resourcesToExpose = config.exposeTypes === true
-            ? config.resources
-            : config.exposeTypes;
+	/**
+	 * Returns an existing transport for the given request/session or creates a new one.
+	 * The returned transport is kept in memory so that subsequent requests in the same
+	 * session share state (tools, prompts, etc.).
+	 */
+	function ensureTransport(req: Request, res: Response): StreamableHTTPServerTransport {
+		let sessionId = (req.headers["mcp-session-id"] as string | undefined) || undefined;
 
-        for (const resourceConfig of resourcesToExpose) {
-            const { name: resourceName, schema, relations } = resourceConfig;
+		if (sessionId && sessionTransports.has(sessionId)) {
+			return sessionTransports.get(sessionId)!;
+		}
 
-            const baseJsonSchema = zodToJsonSchema(schema, {
-                $refStrategy: 'none'
-            });
+		// Create a new session / transport
+		if (!sessionId) {
+			sessionId = randomUUID();
+		}
 
-            const jsonSchemaWithRelations = applyRelationsToJsonSchema(baseJsonSchema, schema, relations, config.name);
+		const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => sessionId! });
+		server.connect(transport).catch((err) => console.error("Failed to connect transport", err));
+		sessionTransports.set(sessionId, transport);
+		// Echo the session id back so the client can reuse it on next requests
+		res.setHeader("mcp-session-id", sessionId);
 
-            const related_tools = Object.keys(resourceConfig.methods)
-                .map(handlerName => {
-                    if (handlerName === 'list' || handlerName === 'search') return `${handlerName}_${resourceName}s`;
-                    return `${handlerName}_${resourceName}`;
-                });
+		// Clean up when the transport closes (e.g., SSE connection dropped or DELETE session)
+		(transport as any).on?.("close", () => {
+			sessionTransports.delete(sessionId!);
+		});
 
-            const resource_template_uri = resourceConfig.get ? `data://${config.name}/${resourceConfig.uri_template}` : undefined;
+		return transport;
+	}
 
-            const typeResource = {
-                ...jsonSchemaWithRelations,
-                name: resourceName,
-                description: schema.description,
-                related_tools,
-                resource_template_uri,
-            };
+	// // Initialize dynamic tools manager if configured
+	// let dynamicToolsManager: DynamicToolsManager | undefined;
+	// if (config.dynamicTools?.enabled) {
+	// 	dynamicToolsManager = new DynamicToolsManager(server, config.dynamicTools);
+	// 	dynamicToolsManager.start();
+	// }
 
-            // This is the read-only resource that serves the JSON schema.
-            const uri = `type://${config.name}/${resourceName}`;
-            server.resource(`${resourceName}`, uri, async (): Promise<ReadResourceResult> => {
-                return {
-                    contents: [{
-                        uri,
-                        mimeType: 'application/json',
-                        text: JSON.stringify(typeResource, null, 2),
-                    }],
-                };
-            });
-        }
-    }
+	// --- Validation ---
+	// Before starting, validate that all declared relationships point to existing resources.
+	// This prevents runtime errors and ensures schema integrity.
+	const resourceNames = new Set(config.resources.map((r) => r.name));
+	for (const resource of config.resources) {
+		const relations = resource.relations;
+		if (relations) {
+			for (const fieldName in relations) {
+				if (!resource.schema.shape[fieldName]) {
+					throw new Error(`Configuration error in resource '${resource.name}': Relation field '${fieldName}' does not exist in the schema.`);
+				}
+				const relation = relations[fieldName as keyof typeof relations];
+				if (!relation) {
+					continue;
+				}
+				const relatedResourceName = relation.type;
+				if (!resourceNames.has(relatedResourceName)) {
+					throw new Error(`Configuration error in resource '${resource.name}': Related resource type '${relatedResourceName}' for field '${fieldName}' is not defined.`);
+				}
+			}
+		}
+	}
 
-    // --- Resource and Tool Registration ---
-    // Loop through each user-defined resource and create the corresponding
-    // MCP resources and tools.
-    for (const resource of config.resources) {
-        const { name, get, methods, uri_template, relations } = resource;
+	// --- Type Exposure ---
+	// If enabled, create special read-only resources that expose the JSON schema
+	// of other resources. This allows clients (and AI models) to discover the data model.
+	if (config.exposeTypes) {
+		const resourcesToExpose = config.exposeTypes === true ? config.resources : config.exposeTypes;
 
-        /** Generates the canonical data URI for a resource instance. */
-        const generateUri = (item: { id: string }): string => {
-            return `data://${config.name}/${uri_template.replace('{id}', item.id)}`;
-        };
+		for (const resourceConfig of resourcesToExpose) {
+			const { name: resourceName, schema, relations } = resourceConfig;
 
-        if (get) {
-            const full_uri_template = `data://${config.name}/${uri_template}`;
-            const template = new ResourceTemplate(full_uri_template, { list: undefined });
-            server.resource(name, template, async (uri, { id }): Promise<ReadResourceResult> => {
-                const item = await withRetry(() => get({ id: id as string }), config.retry);
-                if (!item) {
-                    return { contents: [] };
-                }
-                return {
-                    contents: [{
-                        uri: uri.href,
-                        mimeType: 'application/json',
-                        text: JSON.stringify(item),
-                    }],
-                };
-            });
-        }
-        
-        // --- Workaround for schema generation with relations ---
-        // The MCP SDK's `server.tool()` method builds the final JSON schema for the tool's input
-        // internally. To inject our custom `$ref` properties for relations, we perform a trick:
-        // 1. Create a temporary, isolated MCP server instance.
-        // 2. Register a temporary tool on it with the desired input shape.
-        // 3. This lets us access the generated `inputSchema` from the temporary tool.
-        // 4. We then apply our relationship modifications to this schema.
-        // 5. Finally, we create the *real* tool on our main server and then overwrite its
-        //    (private) `inputSchema` property with our modified version.
-        // This preserves the SDK's internal argument parsing while giving us the schema we need.
+			const baseJsonSchema = zodToJsonSchema(schema, {
+				$refStrategy: "none",
+			});
 
-        for (const methodName in methods) {
-            const method = methods[methodName];
-            const { description, inputSchema, handler, returnsResourceList } = method;
-            const toolName = (methodName === 'list' || methodName === 'search') ? `${methodName}_${name}s` : `${methodName}_${name}`;
+			const jsonSchemaWithRelations = applyRelationsToJsonSchema(baseJsonSchema, schema, relations, config.name);
 
-            const tempServer = new McpServer({ name: 'temp', version: '1.0.0' }, {});
-            const tempTool = tempServer.tool('temp', 'temp', inputSchema.shape, async () => ({ content: [] }));
-            const inputSchemaWithRelations = applyRelationsToJsonSchema(tempTool.inputSchema, inputSchema, relations, config.name);
+			const related_tools = Object.keys(resourceConfig.methods).map((handlerName) => {
+				if (handlerName === "list" || handlerName === "search") return `${handlerName}_${resourceName}s`;
+				return `${handlerName}_${resourceName}`;
+			});
 
-            const registeredTool = server.tool(toolName, description, inputSchema.shape, async (args: z.infer<typeof inputSchema>): Promise<CallToolResult> => {
-                const result = await withRetry(() => handler(args), config.retry);
-                
-                // Validate the handler's output against the defined schema.
-                const validatedResult = method.outputSchema.parse(result);
+			const resource_template_uri = resourceConfig.get ? `data://${config.name}/${resourceConfig.uri_template}` : undefined;
 
-                // For methods that return a list of resources, add the canonical URI to each item.
-                if (returnsResourceList && Array.isArray(validatedResult)) {
-                    const resultsWithUris = validatedResult.map(item => ({
-                        ...item,
-                        uri: generateUri(item)
-                    }));
-                    return { content: [{ type: 'text', text: JSON.stringify(resultsWithUris) }] };
-                }
-                
-                // For methods that return a single resource, add the canonical URI.
-                if ((methodName === 'create' || methodName === 'update') && typeof validatedResult === 'object' && validatedResult !== null && 'id' in validatedResult) {
-                     const resultWithUri = { ...validatedResult, uri: generateUri(validatedResult as { id: string }) };
-                     return { content: [{ type: 'text', text: JSON.stringify(resultWithUri) }] };
-                }
+			const typeResource = {
+				...jsonSchemaWithRelations,
+				name: resourceName,
+				description: schema.description,
+				related_tools,
+				resource_template_uri,
+			};
 
-                return { content: [{ type: 'text', text: JSON.stringify(validatedResult) }] };
-            });
-            // Overwrite the schema with our modified version.
-            (registeredTool as any).inputSchema = inputSchemaWithRelations;
-        }
-    }
+			// This is the read-only resource that serves the JSON schema.
+			const uri = `type://${config.name}/${resourceName}`;
+			server.resource(`${resourceName}`, uri, async (): Promise<ReadResourceResult> => {
+				return {
+					contents: [
+						{
+							uri,
+							mimeType: "application/json",
+							text: JSON.stringify(typeResource, null, 2),
+						},
+					],
+				};
+			});
+		}
+	}
 
-    // --- Server Metadata Exposure ---
-    // If server metadata is provided, expose it as a read-only resource
-    if (config.serverMetadata) {
-        const metadataResource = {
-            ...config.serverMetadata,
-            resources: config.resources.map(r => ({
-                name: r.name,
-                description: r.schema.description,
-                methods: Object.keys(r.methods),
-            })),
-            capabilities: {
-                authentication: !!config.auth,
-                rateLimiting: !!config.rateLimit,
-                retries: !!config.retry,
-                streaming: true, // MCP supports streaming
-            },
-        };
+	// --- Resource and Tool Registration ---
+	// Loop through each user-defined resource and create the corresponding
+	// MCP resources and tools.
+	for (const resource of config.resources) {
+		const { name, get, methods, uri_template, relations } = resource;
 
-        server.resource('server_metadata', `metadata://${config.name}/server`, async (): Promise<ReadResourceResult> => {
-            return {
-                contents: [{
-                    uri: `metadata://${config.name}/server`,
-                    mimeType: 'application/json',
-                    text: JSON.stringify(metadataResource, null, 2),
-                }],
-            };
-        });
-    }
+		/** Generates the canonical data URI for a resource instance. */
+		const generateUri = (item: { id: string }): string => {
+			return `data://${config.name}/${uri_template.replace("{id}", item.id)}`;
+		};
 
-    // --- Server Transport ---
-    // Set up the Express endpoint to handle all incoming MCP requests.
-    app.post('/', authMiddleware, async (req: Request, res: Response) => {
-        // The transport handles the low-level details of the MCP over HTTP.
-        const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-        await server.connect(transport);
-        await transport.handleRequest(req, res, req.body);
-        // Ensure the transport is cleaned up when the client connection closes.
-        res.on('close', () => {
-            transport.close();
-            server.close();
-        });
-    });
+		if (get) {
+			const full_uri_template = `data://${config.name}/${uri_template}`;
+			const template = new ResourceTemplate(full_uri_template, { list: undefined });
+			server.resource(name, template, async (uri, { id }): Promise<ReadResourceResult> => {
+				const item = await withRetry(() => get({ id: id as string }), config.retry);
+				if (!item) {
+					return { contents: [] };
+				}
+				return {
+					contents: [
+						{
+							uri: uri.href,
+							mimeType: "application/json",
+							text: JSON.stringify(item),
+						},
+					],
+				};
+			});
+		}
 
-    return app;
+		// --- Workaround for schema generation with relations ---
+		// The MCP SDK's `server.tool()` method builds the final JSON schema for the tool's input
+		// internally. To inject our custom `$ref` properties for relations, we perform a trick:
+		// 1. Create a temporary, isolated MCP server instance.
+		// 2. Register a temporary tool on it with the desired input shape.
+		// 3. This lets us access the generated `inputSchema` from the temporary tool.
+		// 4. We then apply our relationship modifications to this schema.
+		// 5. Finally, we create the *real* tool on our main server and then overwrite its
+		//    (private) `inputSchema` property with our modified version.
+		// This preserves the SDK's internal argument parsing while giving us the schema we need.
+
+		for (const methodName in methods) {
+			const method = methods[methodName];
+			const { description, inputSchema, handler, returnsResourceList } = method;
+			const toolName = methodName === "list" || methodName === "search" ? `${methodName}_${name}s` : `${methodName}_${name}`;
+
+			const tempServer = new McpServer({ name: "temp", version: "1.0.0" }, {});
+			const tempTool = tempServer.tool("temp", "temp", inputSchema.shape, async () => ({ content: [] }));
+			const inputSchemaWithRelations = applyRelationsToJsonSchema(tempTool.inputSchema, inputSchema, relations, config.name);
+
+			const registeredTool = server.tool(toolName, description, inputSchema.shape, async (args: z.infer<typeof inputSchema>): Promise<CallToolResult> => {
+				const result = await withRetry(() => handler(args), config.retry);
+
+				// Validate the handler's output against the defined schema.
+				const validatedResult = method.outputSchema.parse(result);
+
+				// For methods that return a list of resources, add the canonical URI to each item.
+				if (returnsResourceList && Array.isArray(validatedResult)) {
+					const resultsWithUris = validatedResult.map((item) => ({
+						...item,
+						uri: generateUri(item),
+					}));
+					return { content: [{ type: "text" as const, text: JSON.stringify(resultsWithUris) }] };
+				}
+
+				// For methods that return a single resource, add the canonical URI.
+				if ((methodName === "create" || methodName === "update") && typeof validatedResult === "object" && validatedResult !== null && "id" in validatedResult) {
+					const resultWithUri = { ...validatedResult, uri: generateUri(validatedResult as { id: string }) };
+					return { content: [{ type: "text" as const, text: JSON.stringify(resultWithUri) }] };
+				}
+
+				return { content: [{ type: "text" as const, text: JSON.stringify(validatedResult) }] };
+			});
+			// Overwrite the schema with our modified version.
+			(registeredTool as any).inputSchema = inputSchemaWithRelations;
+		}
+	}
+
+	// --- Server Metadata Exposure ---
+	// If server metadata is provided, expose it as a read-only resource
+	if (config.serverMetadata) {
+		const metadataResource = {
+			...config.serverMetadata,
+			resources: config.resources.map((r) => ({
+				name: r.name,
+				description: r.schema.description,
+				methods: Object.keys(r.methods),
+			})),
+			capabilities: {
+				authentication: !!config.auth,
+				rateLimiting: !!config.rateLimit,
+				retries: !!config.retry,
+				streaming: true, // MCP supports streaming
+			},
+		};
+
+		server.resource("server_metadata", `metadata://${config.name}/server`, async (): Promise<ReadResourceResult> => {
+			return {
+				contents: [
+					{
+						uri: `metadata://${config.name}/server`,
+						mimeType: "application/json",
+						text: JSON.stringify(metadataResource, null, 2),
+					},
+				],
+			};
+		});
+	}
+
+	// --- Server Transport ---
+	// Set up the Express endpoint to handle all incoming MCP requests.
+
+	// Handle all HTTP methods for the MCP endpoint
+	app.all("/", (req: Request, res: Response, next: express.NextFunction) => {
+		// Allow POST, GET, and DELETE requests for MCP operations
+		if (!["POST", "GET", "DELETE"].includes(req.method)) {
+			return res.status(405).json({
+				error: "Method not allowed",
+				message: "Only POST, GET, and DELETE requests are allowed for MCP operations",
+			});
+		}
+		next();
+	});
+
+	app.post("/", authMiddleware, async (req: Request, res: Response) => {
+		console.log("Received MCP POST request", JSON.stringify(req.body));
+		const transport = ensureTransport(req, res);
+		await transport.handleRequest(req, res, req.body);
+	});
+
+	app.get("/", authMiddleware, async (req: Request, res: Response) => {
+		console.log("Received MCP GET request (likely SSE)");
+		if (!req.accepts(["text/event-stream", "application/json"])) {
+			return res.status(406).json({ error: "Not Acceptable: Client must accept text/event-stream or application/json" });
+		}
+		const transport = ensureTransport(req, res);
+		await transport.handleRequest(req, res);
+	});
+
+	app.delete("/", authMiddleware, async (req: Request, res: Response) => {
+		console.log("Received MCP DELETE request (session termination)");
+		const transport = ensureTransport(req, res);
+		await transport.handleRequest(req, res);
+		// Explicitly close session after handling
+		transport.close();
+	});
+
+	// Add cleanup for dynamic tools manager when the app is closed
+	function gracefulShutdown(signal: string) {
+		console.log(`\n${signal} received. Shutting down MCP server...`);
+		// if (dynamicToolsManager) {
+		// 	dynamicToolsManager.stop();
+		// }
+		// Close all transports
+		for (const transport of sessionTransports.values()) {
+			transport.close();
+		}
+		server.close();
+		process.exit(0);
+	}
+
+	process.once("SIGINT", () => gracefulShutdown("SIGINT"));
+	process.once("SIGTERM", () => gracefulShutdown("SIGTERM"));
+
+	return app;
 }
