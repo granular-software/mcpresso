@@ -24,6 +24,7 @@
 - [🎭 Server Side Events](#-server-side-events)
 - [📁 Full Example](#-full-example)
 - [📚 Documentation](#documentation)
+- [💬 Feedback & Contributions](#-feedback--contributions)
 
 **mcpresso** is a lightweight, powerful TypeScript library for rapidly building MCP servers. It simplifies the process of exposing your data models and business logic as fully compliant MCP resources and tools, enabling seamless integration with AI agents and language models.
 
@@ -480,3 +481,20 @@ packages/mcpresso/examples/mcpresso.ts
 ## Documentation
 
 - [MCPresso Generator Guide](./docs/generator.md)
+
+---
+
+## 💬 Feedback & Contributions
+
+We’re building **mcpresso** to help developers bring structured, production-grade MCP servers to life—fast.
+
+If you have suggestions, spot a bug, or want to contribute:
+
+- 👉 **Open an issue** for bug reports, questions, or feature ideas
+- 🔧 **Submit a PR** to improve the docs, fix a bug, or extend the library
+- ⭐ **Star the repo** if you find it useful!
+
+Join us in shaping the future of MCP infrastructure.
+
+> Feedback is not just welcome—it's how we grow.
+
