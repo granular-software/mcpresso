@@ -3,6 +3,7 @@
 ![License](https://img.shields.io/npm/l/mcpresso)
 ![Types](https://img.shields.io/badge/types-TypeScript-blue)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
+![Build](https://github.com/granular-software/mcpresso/actions/workflows/ci.yml/badge.svg)
 
 **mcpresso** is a lightweight, powerful TypeScript library for rapidly building MCP servers. It simplifies the process of exposing your data models and business logic as fully compliant MCP resources and tools, enabling seamless integration with AI agents and language models.
 
