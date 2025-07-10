@@ -1,6 +1,6 @@
 # mcpresso
 
-**mcpresso** is a lightweight, powerful TypeScript library for rapidly building [Model Context Protocol (MCP)](https://example.com) servers. It simplifies the process of exposing your data models and business logic as fully compliant MCP resources and tools, enabling seamless integration with AI agents and language models.
+**mcpresso** is a lightweight, powerful TypeScript library for rapidly building MCP servers. It simplifies the process of exposing your data models and business logic as fully compliant MCP resources and tools, enabling seamless integration with AI agents and language models.
 
 With a strong focus on developer experience, type safety, and flexibility, `mcpresso` allows you to:
 
