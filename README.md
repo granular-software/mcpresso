@@ -22,6 +22,27 @@ An unopinionated, "bring your own" server toolkit for the Model-Context Protocol
 
 Built on [Hono](https://hono.dev/), `mcpresso` offers a familiar foundation while abstracting away MCP protocol complexity—so you can focus on your application's logic.
 
+## 👥 Who It’s For
+
+**Built for teams implementing AI agents in production environments.**
+
+### 🤖 Agent Builders (Primary Audience)
+Developers creating AI agents that need reliable, structured access to APIs and data sources.  
+Skip the boilerplate and focus on agent logic with production-ready infrastructure.
+
+### ⚙️ Automation Teams
+Engineering teams automating business processes with AI.  
+Get governance, security, and monitoring for enterprise automation.
+
+### 🏗️ AI Infrastructure
+Platform teams building the foundation for AI-powered applications.  
+Standardize agent-resource access using the Model Context Protocol (MCP).
+
+### 📦 SaaS Engineers
+Product teams adding AI agent capabilities to existing SaaS platforms.  
+Expose your APIs to agents quickly while maintaining security and user control.
+
+
 ---
 
 ## 📦 Installation
