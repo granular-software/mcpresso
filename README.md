@@ -5,6 +5,26 @@
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
 ![Build](https://github.com/granular-software/mcpresso/actions/workflows/ci.yml/badge.svg)
 
+## 📚 Table of Contents
+
+- [👥 Who It’s For](#-who-its-for)
+- [📦 Installation](#-installation)
+- [🚀 Quick Start](#-quick-start)
+- [🛠️ OpenAPI Generator](#-openapi-generator)
+- [🚀 Deployment](#-deployment)
+- [🧹 Core Concepts](#-core-concepts)
+- [🛠️ Defining Resources](#-defining-resources)
+- [🔗 Handling Relationships](#-handling-relationships)
+- [🔍 Search & Custom Tools](#-search--custom-tools)
+- [🧠 Type Exposure](#-type-exposure)
+- [🔐 Authentication](#-authentication)
+- [🔁 Automatic Retries](#-automatic-retries)
+- [⏱️ Rate Limiting](#-rate-limiting)
+- [📊 Server Metadata](#-server-metadata)
+- [🎭 Server Side Events](#-server-side-events)
+- [📁 Full Example](#-full-example)
+- [📚 Documentation](#documentation)
+
 **mcpresso** is a lightweight, powerful TypeScript library for rapidly building MCP servers. It simplifies the process of exposing your data models and business logic as fully compliant MCP resources and tools, enabling seamless integration with AI agents and language models.
 
 With a strong focus on developer experience, type safety, and flexibility, `mcpresso` allows you to:
@@ -460,42 +480,3 @@ packages/mcpresso/examples/mcpresso.ts
 ## Documentation
 
 - [MCPresso Generator Guide](./docs/generator.md)
-
-## 🛠️ OpenAPI Generator
-
-For generating MCPresso servers from OpenAPI specifications, we now have a dedicated package: **[mcpresso-openapi-generator](https://github.com/granular-software/mcpresso-openapi-generator)**.
-
-This standalone package provides a powerful CLI tool that can generate complete MCPresso servers directly from any OpenAPI 3.x specification with full type safety and MCP compliance.
-
-### Installation
-
-```bash
-npm install -g mcpresso-openapi-generator
-```
-
-### Quick Usage
-
-```bash
-# Generate a server from OpenAPI spec
-mcpresso-generate generate \
-  --source ./api-spec.json \
-  --output ./my-server \
-  --name my-api-server \
-  --verbose
-
-# Initialize a new MCPresso project
-mcpresso-generate init \
-  --name my-project \
-  --output ./projects \
-  --verbose
-```
-
-### Features
-
-- 🚀 **Automatic Generation**: Convert any OpenAPI 3.0 specification to a MCPresso server
-- 🔒 **Type Safety**: Full TypeScript support with Zod schema validation
-- 🎯 **MCP Compliance**: Generated servers follow MCP (Model Context Protocol) standards
-- 📦 **Ready to Run**: Complete project structure with dependencies and scripts
-- 🔧 **Customizable**: Configurable API client with authentication and error handling
-
-Visit the [mcpresso-openapi-generator repository](https://github.com/granular-software/mcpresso-openapi-generator) for full documentation and examples.
