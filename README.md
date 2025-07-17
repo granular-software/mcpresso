@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/granular-software-mcpresso-badge.png)](https://mseep.ai/app/granular-software-mcpresso)
+
 # mcpresso
 ![npm](https://img.shields.io/npm/v/mcpresso)
 ![License](https://img.shields.io/npm/l/mcpresso)
