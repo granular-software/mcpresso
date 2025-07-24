@@ -304,136 +304,123 @@ This includes:
 
 ## 🔐 Authentication
 
-Secure your MCP server using OAuth 2.1 with minimal configuration. When authentication is enabled, **all endpoints are protected** and require a valid Bearer token.
+`mcpresso` supports three authentication modes to fit different deployment scenarios:
 
-### Basic Setup
+1. **No Authentication** - Perfect for development and public APIs
+2. **External OAuth** - Use a separate OAuth server for enterprise environments 
+3. **Integrated OAuth** - All-in-one deployment with built-in OAuth server
 
-The simplest setup requires only the `issuer` field:
+### Mode 1: No Authentication
+
+The simplest setup - no authentication configuration needed:
 
 ```ts
 const server = createMCPServer({
-  name: "my_secure_server",
+  name: "public_api",
   resources: [userResource],
-  auth: {
-    issuer: 'https://your-auth-server.com',
-  },
+  // No auth field = no authentication
 });
 ```
 
-### Integrated OAuth Setup (Same Port)
+All endpoints are public and no Bearer tokens are required.
 
-For the integrated approach where OAuth and MCP run on the same port:
+### Mode 2: External OAuth Server
+
+Use a separate OAuth server for authentication:
 
 ```ts
 const server = createMCPServer({
-  name: "my_secure_server",
+  name: "enterprise_api",
   resources: [userResource],
-  
-  // OAuth server integration (runs on same port)
-  oauth: {
-    enabled: true,
-    basePath: "/oauth", // OAuth endpoints at /oauth/authorize, /oauth/token, etc.
-    config: {
-      issuer: "https://api.example.com",
-      serverUrl: "https://api.example.com",
+  auth: {
+    issuer: "https://auth.company.com",        // OAuth server URL
+    serverUrl: "https://api.company.com",      // This MCP server URL
+    jwtSecret: "shared-secret",                // Same secret as OAuth server
+    userLookup: async (jwtPayload) => {
+      // Fetch full user profile from your database
+      const user = await db.users.findById(jwtPayload.sub);
+      return user ? {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        scopes: user.permissions,
+        profile: user.profile
+      } : null;
     }
   },
-  
-  // MCP authentication (protects all MCP endpoints)
-  auth: {
-    issuer: "https://api.example.com", // Same as OAuth server
-    serverUrl: "https://api.example.com",
-  },
 });
 ```
 
-### Advanced Configuration
+**Architecture:**
+```
+┌─────────────────┐    ┌──────────────────┐
+│   OAuth Server  │    │    MCP Server    │
+│   (Port 4001)   │    │   (Port 4000)    │ 
+│                 │    │                  │
+│ • Login UI      │    │ • API Endpoints  │
+│ • User Auth     │    │ • Token Validation│
+│ • Token Issue   │    │ • Resource Access│
+└─────────────────┘    └──────────────────┘
+```
 
-For production environments, you can customize every aspect of authentication:
+### Mode 3: Integrated OAuth Server
+
+Run OAuth and MCP servers on the same port using `mcpresso-oauth-server`:
 
 ```ts
+import { MCPOAuthServer } from "mcpresso-oauth-server";
+
+// Create OAuth server
+const oauthServer = new MCPOAuthServer({
+  issuer: "http://localhost:4000",
+  serverUrl: "http://localhost:4000", 
+  jwtSecret: "dev-secret-key",
+  auth: {
+    authenticateUser: async (credentials, context) => {
+      // Your login logic
+      const user = await db.users.findByEmail(credentials.username);
+      return user && await bcrypt.compare(credentials.password, user.hashedPassword) ? user : null;
+    },
+    renderLoginPage: async (context, error) => {
+      // Custom login UI (optional)
+      return `<html>...login form...</html>`;
+    }
+  }
+}, storage);
+
+// Create MCP server with integrated OAuth
 const server = createMCPServer({
-  name: "my_secure_server",
+  name: "integrated_server",
   resources: [userResource],
   auth: {
-    // Required: OAuth server URL (where tokens are issued)
-    issuer: 'https://auth.example.com',
-    
-    // Optional: Your MCP server's canonical URL (used as audience validation)
-    serverUrl: 'https://api.example.com',
-    
-    // Optional: Custom endpoint paths (relative to issuer/serverUrl)
-    jwksEndpoint: '/.well-known/jwks.json', // Relative to issuer
-    metadataEndpoint: '/.well-known/oauth-protected-resource', // Relative to serverUrl
-    
-    // Optional: JWT validation options
-    jwtOptions: {
-      issuer: 'https://auth.example.com',
-      audience: 'https://api.example.com',
-      clockTolerance: 30, // 30 seconds tolerance for clock skew
-      maxTokenAge: 3600, // Reject tokens older than 1 hour
-    },
-    
-    // Optional: Error handling
-    errorHandling: {
-      includeDetails: false, // Don't expose internal details in production
-      messages: {
-        missingToken: 'Authentication required',
-        invalidToken: 'Invalid authentication token',
-        expiredToken: 'Token has expired',
-        audienceMismatch: 'Token not valid for this service',
-        signatureFailure: 'Token signature verification failed',
-      }
-    },
-    
-    // Optional: Logging
-    logging: {
-      logSuccess: false, // Don't log successful auths
-      logFailures: true, // Log failed auths
-      logValidation: false, // Don't log validation details
-    },
-    
-    // Optional: MCP-specific options
-    requireResourceIndicator: true, // Require resource parameter
-    validateAudience: true, // Validate audience claims
+    oauth: oauthServer,                        // Integrate OAuth server
+    serverUrl: "http://localhost:4000",
+    userLookup: async (jwtPayload) => {
+      // Fetch full user profiles
+      return await db.users.findById(jwtPayload.sub);
+    }
   },
 });
 ```
 
-### Architecture Overview
-
-The authentication setup can be configured in **two ways**:
-
-#### Option 1: Separate Servers (Traditional)
-1. **OAuth Authorization Server** (`mcpresso-oauth-server` package)
-   - Runs on port 3000 (example)
-   - Issues JWT tokens
-   - Exposes JWKS endpoint at `/.well-known/jwks.json`
-   - Handles OAuth 2.1 flows
-
-2. **MCP Server** (`mcpresso` package) 
-   - Runs on port 3081 (example)
-   - Your actual API with resources and tools
-   - **All endpoints are protected** when auth is enabled
-   - Validates JWT tokens from the OAuth server
-   - Exposes metadata at `/.well-known/oauth-protected-resource`
-
-#### Option 2: Integrated Server (Same Port)
-1. **Combined Server** (`mcpresso` with OAuth integration)
-   - Runs on port 3081 (example)
-   - OAuth endpoints at `/oauth/authorize`, `/oauth/token`, etc.
-   - MCP endpoints protected by authentication
-   - **Everything on the same port**
-
-**Flow:**
-1. Client gets token from OAuth endpoints (`https://api.example.com/oauth/token`)
-2. Client uses token to access MCP endpoints (`https://api.example.com/`)
-3. MCP server validates token against its own JWKS
-4. If valid, request proceeds; if not, returns 401
+**Architecture:**
+```
+┌─────────────────────────────────┐
+│        Integrated Server        │
+│         (Port 4000)             │
+│                                 │
+│ ┌─────────────┐ ┌─────────────┐ │
+│ │OAuth Service│ │ MCP Service │ │
+│ │• Login UI   │ │• API Access │ │
+│ │• User Auth  │ │• Resources  │ │
+│ │• Tokens     │ │• Tools      │ │
+│ └─────────────┘ └─────────────┘ │
+└─────────────────────────────────┘
+```
 
 ### Handler Signature with Authentication
 
-When authentication is enabled, all handlers receive the authenticated user data as a second parameter:
+When authentication is enabled, handlers receive the authenticated user as a second parameter:
 
 ```ts
 const userResource = createResource({
@@ -443,45 +430,78 @@ const userResource = createResource({
   methods: {
     get: {
       handler: async ({ id }, user) => {
-        // user contains the JWT payload (sub, email, etc.)
-        console.log("Authenticated user:", user);
+        // user contains the full user profile (from userLookup)
+        console.log("Authenticated user:", user?.id, user?.email);
         return users.find((u) => u.id === id);
       },
     },
     list: {
       handler: async (_, user) => {
-        // user is undefined if no auth, or contains JWT payload if authenticated
-        return users;
+        // user is undefined if no auth, UserProfile if authenticated
+        if (!user) throw new Error("Authentication required");
+        return users.filter(u => user.scopes.includes('admin') || u.id === user.id);
       },
     },
   },
 });
 ```
 
-### Authentication Features
+### User Profile vs JWT Payload
 
-`mcpresso` automatically:
+- **Without `userLookup`**: `user` parameter contains raw JWT payload (`sub`, `iss`, `aud`, etc.)
+- **With `userLookup`**: `user` parameter contains rich user profile from your database
 
-* **Protects all endpoints**: Only requests with valid Bearer tokens are allowed
-* **Validates JWTs**: Automatically verifies token signatures and expiration
-* **Injects user data**: Makes the JWT payload available in all handlers
-* **Advertises security metadata**: Exposes OAuth metadata at `/.well-known/oauth-protected-resource`
-* **Configurable validation**: Customize JWT validation, error messages, and logging
-* **Production ready**: Security-focused defaults with extensive customization options
+### Advanced Configuration
 
-### Example: OAuth Integration
+Fine-tune JWT validation and error handling:
 
-See the complete OAuth example at [`packages/mcpresso/examples/oauth-mcpresso.ts`](./examples/oauth-mcpresso.ts) for a working implementation.
-
-### Handler Parameters
-
-All handlers follow this signature:
 ```ts
-handler: async (args: InputSchema, user?: JWT_Payload) => Promise<Output>
+auth: {
+  issuer: "https://auth.example.com",
+  serverUrl: "https://api.example.com",
+  jwtSecret: "shared-secret",
+  
+  // JWT validation options
+  jwtOptions: {
+    clockTolerance: 30,     // 30 seconds tolerance for clock skew
+    maxTokenAge: 3600,      // Reject tokens older than 1 hour
+  },
+  
+  // Error handling
+  errorHandling: {
+    includeDetails: false,  // Don't expose internal details in production
+    messages: {
+      missingToken: 'Authentication required',
+      invalidToken: 'Invalid token',
+      expiredToken: 'Token expired',
+    }
+  },
+  
+  // Logging
+  logging: {
+    logSuccess: false,      // Don't log successful auths
+    logFailures: true,      // Log failed auths
+  },
+}
 ```
 
-- **`args`**: The input parameters (validated against your input schema)
-- **`user`**: The JWT payload from the Bearer token (undefined if no auth or auth disabled)
+### Examples
+
+See complete working examples:
+
+- **No Auth**: [`examples/no-auth-demo.ts`](./examples/no-auth-demo.ts)
+- **External OAuth**: [`examples/separate-servers-demo.ts`](./examples/separate-servers-demo.ts)  
+- **Integrated OAuth**: [`examples/oauth2-simple-demo.ts`](./examples/oauth2-simple-demo.ts)
+
+### Authentication Features
+
+When authentication is enabled, `mcpresso` automatically:
+
+- ✅ **Protects all endpoints** - Only valid Bearer tokens allowed
+- ✅ **Validates JWTs** - Signature and expiration verification  
+- ✅ **Injects user data** - Rich user profiles available in handlers
+- ✅ **Exposes metadata** - OAuth discovery at `/.well-known/oauth-protected-resource`
+- ✅ **Production ready** - Security defaults with full customization
 
 ---
 
@@ -653,3 +673,5 @@ mcpresso-generate init \
 - 🔧 **Customizable**: Configurable API client with authentication and error handling
 
 Visit the [mcpresso-openapi-generator repository](https://github.com/granular-software/mcpresso-openapi-generator) for full documentation and examples.
+
+`
