@@ -38,15 +38,17 @@ describe("MCPresso Authentication Tests", () => {
         uri_template: "protected_users/{id}",
         methods: {
           get: {
-            handler: async ({ id }) => {
+            handler: async ({ id }, user) => {
               return protectedUsers.find((user) => user.id === id);
             },
           },
           create: {
-            handler: async (data) => {
+            handler: async (data, user) => {
               const newUser = {
                 id: `user-${Date.now()}`,
-                ...data,
+                name: data.name || '',
+                email: data.email || '',
+                role: data.role || '',
                 createdAt: new Date(),
                 updatedAt: new Date(),
               };
@@ -55,7 +57,7 @@ describe("MCPresso Authentication Tests", () => {
             },
           },
           list: {
-            handler: async () => protectedUsers,
+            handler: async (_, user) => protectedUsers,
           },
         },
       });
@@ -129,7 +131,7 @@ describe("MCPresso Authentication Tests", () => {
         uri_template: "protected_users/{id}",
         methods: {
           get: {
-            handler: async ({ id }) => {
+            handler: async ({ id }, user) => {
               return protectedUsers.find((user) => user.id === id);
             },
           },
@@ -170,7 +172,7 @@ describe("MCPresso Authentication Tests", () => {
         uri_template: "protected_users/{id}",
         methods: {
           get: {
-            handler: async ({ id }) => {
+            handler: async ({ id }, user) => {
               return protectedUsers.find((user) => user.id === id);
             },
           },
@@ -212,7 +214,7 @@ describe("MCPresso Authentication Tests", () => {
         uri_template: "protected_users/{id}",
         methods: {
           get: {
-            handler: async ({ id }) => {
+            handler: async ({ id }, user) => {
               return protectedUsers.find((user) => user.id === id);
             },
           },

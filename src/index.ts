@@ -7,8 +7,25 @@ import { McpServer, ResourceTemplate, type RegisteredTool } from "@modelcontextp
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Express, Request, Response } from "express";
 import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
-import { type AuthConfig, createAuthMiddleware } from "./auth.js";
+import { type MCPAuthConfig, createMCPAuthMiddleware, createMCPProtectedResourceMetadataHandler, type UserProfile, type JWTPayload } from "./auth.js";
 import { randomUUID } from "crypto";
+import { AsyncLocalStorage } from "async_hooks";
+import { registerOAuthEndpoints } from '../../mcpresso-oauth-server/src/http-server.js';
+import { MCPOAuthServer } from '../../mcpresso-oauth-server/src/oauth-server.js';
+
+// Request context using AsyncLocalStorage for proper isolation
+interface RequestContext {
+  user?: UserProfile | JWTPayload;
+  sessionId?: string;
+}
+
+const requestContext = new AsyncLocalStorage<RequestContext>();
+
+// Helper function to get current user from context
+export function getCurrentUser(): UserProfile | JWTPayload | undefined {
+  return requestContext.getStore()?.user;
+}
+
 
 /**
  * Configuration for exponential back-off retries on handler failures.
@@ -135,7 +152,7 @@ interface Method {
 	description: string;
 	inputSchema: z.ZodObject<any, any, any>;
 	outputSchema: z.ZodTypeAny;
-	handler: (args: any) => Promise<any>;
+	handler: (args: any, user?: any) => Promise<any>;
 	// A flag to indicate if the output should be enriched with URIs.
 	returnsResourceList?: boolean;
 }
@@ -148,20 +165,20 @@ export type MethodDefinition<TInput extends z.ZodObject<any, any, any> | z.ZodTy
 	description?: string;
 	inputSchema?: TInput;
 	outputSchema?: z.ZodType<TOutput>;
-	handler: (args: TInput extends z.ZodTypeAny ? z.infer<TInput> : any) => Promise<TOutput>;
+	handler: (args: TInput extends z.ZodTypeAny ? z.infer<TInput> : any, user?: any) => Promise<TOutput>;
 };
 
 // --- Specialized Method Definitions for Automatic Schema Inference ---
 
-type CreateMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<Omit<T["shape"], "id" | "createdAt" | "updatedAt">>, z.infer<T>>, "inputSchema" | "outputSchema">;
+type CreateMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<Omit<T["shape"], "id" | "createdAt" | "updatedAt">>, z.infer<T>>, "inputSchema" | "outputSchema"> & { handler: (args: z.infer<ReturnType<T["partial"]>>, user?: any) => Promise<z.infer<T>> };
 
-type UpdateMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<any>, z.infer<T>>, "inputSchema" | "outputSchema"> & { handler: (args: z.infer<ReturnType<T["partial"]>> & { id: string }) => Promise<z.infer<T>> };
+type UpdateMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<any>, z.infer<T>>, "inputSchema" | "outputSchema"> & { handler: (args: z.infer<ReturnType<T["partial"]>> & { id: string }, user?: any) => Promise<z.infer<T>> };
 
-type DeleteMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<{ id: z.ZodString }>, { success: boolean }>, "inputSchema" | "outputSchema">;
+type DeleteMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<{ id: z.ZodString }>, { success: boolean }>, "inputSchema" | "outputSchema"> & { handler: (args: { id: string }, user?: any) => Promise<{ success: boolean }> };
 
-type ListMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<{}>, z.infer<T>[]>, "inputSchema" | "outputSchema">;
+type ListMethod<T extends z.ZodObject<any>> = Omit<MethodDefinition<z.ZodObject<{}>, z.infer<T>[]>, "inputSchema" | "outputSchema"> & { handler: (args: {}, user?: any) => Promise<z.infer<T>[]> };
 
-type GetMethod<T extends z.ZodObject<any>> = MethodDefinition<z.ZodObject<{ id: z.ZodString }>, z.infer<T> | undefined>;
+type GetMethod<T extends z.ZodObject<any>> = MethodDefinition<z.ZodObject<{ id: z.ZodString }>, z.infer<T> | undefined> & { handler: (args: { id: string }, user?: any) => Promise<z.infer<T> | undefined> };
 
 /**
  * The final, fully processed configuration for a resource.
@@ -173,7 +190,7 @@ export interface ResourceConfig<T extends z.ZodObject<any, any, any>> {
 	schema: T;
 	uri_template: string;
 	relations?: Partial<Record<keyof T["shape"], Relation>>;
-	get?: (args: { id: string }) => Promise<z.infer<T> | undefined>;
+	get?: (args: { id: string }, user?: any) => Promise<z.infer<T> | undefined>;
 	methods: Record<string, Method>;
 }
 
@@ -230,8 +247,15 @@ export interface MCPServerConfig {
 	 * This is crucial for enabling language models to understand the server's data model.
 	 */
 	exposeTypes?: boolean | ResourceConfig<any>[];
-	/** Optional configuration to enable OAuth 2.1 authentication. */
-	auth?: AuthConfig;
+	/** 
+	 * Optional configuration to enable authentication.
+	 * 
+	 * Three modes:
+	 * 1. No auth: Don't provide this field
+	 * 2. External OAuth: Provide issuer + userLookup  
+	 * 3. Integrated OAuth: Provide oauth server instance
+	 */
+	auth?: MCPAuthConfig;
 	/** Optional configuration for exponential back-off retry on handler failures. */
 	retry?: RetryConfig;
 	/** Optional configuration for rate limiting. */
@@ -721,16 +745,12 @@ export function createResource<T extends z.ZodObject<any, any, any>>(blueprint: 
  */
 export function createMCPServer(config: MCPServerConfig): Express {
 	const app = express();
-	// app.use(cors());
+	// Apply CORS globally for all endpoints (OAuth + MCP)
+	app.use(cors({ origin: "*" }));
+	// Parse x-www-form-urlencoded bodies (needed for /token requests)
+	app.use(express.urlencoded({ extended: true }));
+	// Parse JSON bodies (for MCP requests)
 	app.use(express.json());
-
-	app.use(
-		cors({
-			origin: ["*"],
-			exposedHeaders: ["mcp-session-id"],
-			allowedHeaders: ["Content-Type", "mcp-session-id", "accept", "last-event-id"],
-		}),
-	);
 
 	// Add rate limiting if configured
 	if (config.rateLimit) {
@@ -744,16 +764,16 @@ export function createMCPServer(config: MCPServerConfig): Express {
 	}
 
 	if (config.auth) {
-		app.get("/.well-known/oauth-protected-resource-metadata", (req, res) => {
-			if (!config.auth) return res.status(500).send("Auth not configured");
-			res.json({
-				resource: config.serverUrl,
-				authorization_servers: [config.auth.issuer],
-			});
-		});
+		app.get("/.well-known/oauth-protected-resource-metadata", createMCPProtectedResourceMetadataHandler(config.auth, config.serverUrl));
 	}
 
-	const authMiddleware = config.auth ? createAuthMiddleware(config.auth, config.serverUrl ?? "") : (req: Request, res: Response, next: express.NextFunction) => next();
+	// --- OAuth server integration (integrated mode) ---
+	if (config.auth?.oauth) {
+		const oauthServer = config.auth.oauth as MCPOAuthServer;
+		registerOAuthEndpoints(app, oauthServer, '');
+	}
+
+	const authMiddleware = config.auth ? createMCPAuthMiddleware(config.auth, config.serverUrl) : (req: Request, res: Response, next: express.NextFunction) => next();
 
 	const server = new McpServer(
 		{
@@ -915,7 +935,8 @@ export function createMCPServer(config: MCPServerConfig): Express {
 		//    (private) `inputSchema` property with our modified version.
 		// This preserves the SDK's internal argument parsing while giving us the schema we need.
 
-		for (const methodName in methods) {
+		if (methods) {
+			for (const methodName in methods) {
 			const method = methods[methodName];
 			const { description, inputSchema, handler, returnsResourceList } = method;
 			const toolName = methodName === "list" || methodName === "search" ? `${methodName}_${name}s` : `${methodName}_${name}`;
@@ -924,12 +945,26 @@ export function createMCPServer(config: MCPServerConfig): Express {
 			const tempTool = tempServer.tool("temp", "temp", inputSchema.shape, async () => ({ content: [] }));
 			const inputSchemaWithRelations = applyRelationsToJsonSchema(tempTool.inputSchema, inputSchema, relations, config.name);
 
-			const registeredTool = server.tool(toolName, description, inputSchema.shape, async (args: z.infer<typeof inputSchema>): Promise<CallToolResult> => {
-				const result = await withRetry(() => handler(args), config.retry);
-
+			/**
+			 * Tool handler wrapper: passes user from request context as second parameter.
+			 * @param args - The tool arguments (validated against input schema).
+			 */
+			const wrappedHandler = async (args: z.infer<typeof inputSchema>): Promise<CallToolResult> => {
+				// Get user data from request context (set by auth middleware)
+				const user: UserProfile | JWTPayload | undefined = getCurrentUser();
+				
+				console.log(`\n🔧 HANDLER DEBUG - ${toolName}`);
+				console.log("📋 Arguments:", JSON.stringify(args, null, 2));
+				console.log("👤 User from context:", user ? {
+					id: user.id || (user as any).sub,
+					username: user.username || "N/A",
+					email: user.email || "N/A"
+				} : "❌ No user in context");
+				console.log("🔧".repeat(30));
+				
+				const result = await withRetry(() => handler(args, user), config.retry);
 				// Validate the handler's output against the defined schema.
 				const validatedResult = method.outputSchema.parse(result);
-
 				// For methods that return a list of resources, add the canonical URI to each item.
 				if (returnsResourceList && Array.isArray(validatedResult)) {
 					const resultsWithUris = validatedResult.map((item) => ({
@@ -938,17 +973,19 @@ export function createMCPServer(config: MCPServerConfig): Express {
 					}));
 					return { content: [{ type: "text" as const, text: JSON.stringify(resultsWithUris) }] };
 				}
-
 				// For methods that return a single resource, add the canonical URI.
 				if ((methodName === "create" || methodName === "update") && typeof validatedResult === "object" && validatedResult !== null && "id" in validatedResult) {
 					const resultWithUri = { ...validatedResult, uri: generateUri(validatedResult as { id: string }) };
 					return { content: [{ type: "text" as const, text: JSON.stringify(resultWithUri) }] };
 				}
-
 				return { content: [{ type: "text" as const, text: JSON.stringify(validatedResult) }] };
-			});
+			};
+
+			// Register the tool with the wrapped handler
+			const registeredTool = server.tool(toolName, description, inputSchema.shape, wrappedHandler);
 			// Overwrite the schema with our modified version.
 			(registeredTool as any).inputSchema = inputSchemaWithRelations;
+		}
 		}
 	}
 
@@ -999,21 +1036,107 @@ export function createMCPServer(config: MCPServerConfig): Express {
 	});
 
 	app.post("/", authMiddleware, async (req: Request, res: Response) => {
-		console.log("Received MCP POST request", JSON.stringify(req.body));
+		console.log("\n" + "🔵".repeat(20));
+		console.log("📨 MCP POST REQUEST RECEIVED");
+		console.log("🔵".repeat(20));
+		console.log("🌐 Request Details:");
+		console.log("   URL:", req.url);
+		console.log("   Method:", req.method);
+		console.log("   Content-Type:", req.headers['content-type']);
+		console.log("   User-Agent:", req.headers['user-agent']);
+		console.log("\n🔐 Authentication Status:");
+		if ((req as any).auth) {
+			console.log("   ✅ Authenticated");
+			console.log("   👤 User:", (req as any).auth.id || (req as any).auth.sub || "Unknown");
+			console.log("   📋 Auth Data:", JSON.stringify((req as any).auth, null, 2));
+		} else {
+			console.log("   ❌ Not authenticated (this should not happen if auth is enabled!)");
+		}
+		console.log("\n📦 Request Body:");
+		console.log("   ", JSON.stringify(req.body, null, 2));
+		console.log("\n🚀 Forwarding to MCP transport with user context...");
+		console.log("🔵".repeat(20) + "\n");
+		
 		const transport = ensureTransport(req, res);
-		await transport.handleRequest(req, res, req.body);
+		
+		// Run the transport handling within the request context
+		const sessionId = (req.headers["mcp-session-id"] as string) || "unknown";
+		const context: RequestContext = {
+			user: (req as any).auth,
+			sessionId
+		};
+		
+		await requestContext.run(context, async () => {
+			console.log("🔄 Running transport within request context");
+			console.log("   Context user:", context.user?.id || context.user?.sub || "No user");
+			await transport.handleRequest(req, res, req.body);
+		});
 	});
 
-	app.get("/", authMiddleware, async (req: Request, res: Response) => {
-		console.log("Received MCP GET request (likely SSE)");
+	// Use conditional auth for GET/SSE – once a session is established we don’t need to re-authenticate on every poll
+	app.get("/", (req: Request, res: Response, next: express.NextFunction) => {
+		console.log("\n" + "🟢".repeat(20));
+		console.log("📡 MCP GET REQUEST RECEIVED");
+		console.log("🟢".repeat(20));
+		console.log("🌐 Request Details:");
+		console.log("   URL:", req.url);
+		console.log("   Method:", req.method);
+		console.log("   Accept:", req.headers.accept);
+		console.log("   User-Agent:", req.headers['user-agent']);
+		
+		const sessionId = (req.headers["mcp-session-id"] as string | undefined) || undefined;
+		console.log("\n🔑 Session Management:");
+		console.log("   MCP-Session-ID:", sessionId || "❌ MISSING");
+		console.log("   Has existing transport:", sessionId ? sessionTransports.has(sessionId) : false);
+		
+		if (sessionId && sessionTransports.has(sessionId)) {
+			console.log("   ✅ Using existing session, skipping auth");
+			console.log("🟢".repeat(20) + "\n");
+			return next(); // skip auth, session already validated
+		} else {
+			console.log("   🔐 No existing session, applying auth middleware");
+			console.log("🟢".repeat(20) + "\n");
+			return authMiddleware(req, res, next);
+		}
+	}, async (req: Request, res: Response) => {
+		console.log("\n🔄 Processing GET request after auth...");
+		console.log("🎯 Accept headers:", req.headers.accept);
+		
 		if (!req.accepts(["text/event-stream", "application/json"])) {
+			console.log("❌ Rejecting request - unsupported Accept header");
 			return res.status(406).json({ error: "Not Acceptable: Client must accept text/event-stream or application/json" });
 		}
+		
+		console.log("✅ Accept header valid, forwarding to transport");
 		const transport = ensureTransport(req, res);
-		await transport.handleRequest(req, res);
+		
+		// Run within request context if we have auth data
+		const sessionId = (req.headers["mcp-session-id"] as string) || "unknown";
+		const authData = (req as any).auth;
+		
+		if (authData) {
+			const context: RequestContext = {
+				user: authData,
+				sessionId
+			};
+			await requestContext.run(context, async () => {
+				console.log("🔄 Running GET transport within request context");
+				await transport.handleRequest(req, res);
+			});
+		} else {
+			// No auth data (probably using existing session)
+			console.log("🔄 Running GET transport without auth context (existing session)");
+			await transport.handleRequest(req, res);
+		}
 	});
 
-	app.delete("/", authMiddleware, async (req: Request, res: Response) => {
+	app.delete("/", (req: Request, res: Response, next: express.NextFunction) => {
+		const sessionId = (req.headers["mcp-session-id"] as string | undefined) || undefined;
+		if (sessionId && sessionTransports.has(sessionId)) {
+			return next();
+		}
+		return authMiddleware(req, res, next);
+	}, async (req: Request, res: Response) => {
 		console.log("Received MCP DELETE request (session termination)");
 		const transport = ensureTransport(req, res);
 		await transport.handleRequest(req, res);

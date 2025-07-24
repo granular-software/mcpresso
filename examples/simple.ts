@@ -39,10 +39,10 @@ const tagResource = createResource({
 	uri_template: "tags/{id}",
 	methods: {
 		get: {
-			handler: async ({ id }, user) => tags.find((tag) => tag.id === id),
+			handler: async ({ id }) => tags.find((tag) => tag.id === id),
 		},
 		list: {
-			handler: async (_, user) => tags,
+			handler: async () => tags,
 		},
 	},
 });
@@ -58,13 +58,13 @@ const noteResource = createResource({
 	},
 	methods: {
 		get: {
-			handler: async ({ id }, user) => {
+			handler: async ({ id }) => {
 				console.log(`Getting note with id: ${id}`);
 				return notes.find((note) => note.id === id);
 			},
 		},
 		create: {
-			handler: async (data, user) => {
+			handler: async (data) => {
 				console.log("Creating a new note with data:", data);
 
 				if (!data.authorId) {
@@ -100,7 +100,7 @@ const noteResource = createResource({
 			// Override the default input schema to only allow picking certain fields
 			// inputSchema: NoteSchema.pick({ content: true, tagIds: true }).partial().extend({ id: z.string() }),
 			
-            handler: async ({ id, ...data }, user) => {
+            handler: async ({ id, ...data }) => {
 				console.log(`Updating note with id: ${id} with data:`, data);
 				const index = notes.findIndex((note) => note.id === id);
 				if (index === -1) {
@@ -111,7 +111,7 @@ const noteResource = createResource({
 			},
 		},
 		delete: {
-			handler: async ({ id }, user) => {
+			handler: async ({ id }) => {
 				console.log(`Deleting note with id: ${id}`);
 				const index = notes.findIndex((note) => note.id === id);
 				if (index === -1) {
@@ -122,7 +122,7 @@ const noteResource = createResource({
 			},
 		},
 		list: {
-			handler: async (_, user) => {
+			handler: async () => {
 				console.log("Listing all notes");
 				return notes;
 			},
@@ -132,7 +132,7 @@ const noteResource = createResource({
 			inputSchema: z.object({
 				query: z.string().describe("The text to search for in the note content."),
 			}),
-			handler: async ({ query }, user) => {
+			handler: async ({ query }) => {
 				console.log(`Searching for notes with query: "${query}"`);
 				return notes.filter((note) => note.content.includes(query));
 			},
@@ -145,7 +145,7 @@ const noteResource = createResource({
 			outputSchema: z.object({
 				count: z.number(),
 			}),
-			handler: async ({ authorId }, user) => {
+			handler: async ({ authorId }) => {
 				const count = notes.filter((note) => note.authorId === authorId).length;
 				return { count };
 			},
@@ -153,38 +153,11 @@ const noteResource = createResource({
 	},
 });
 
-// Create a "user" resource
-const userResource = createResource({
-	name: "user",
-	schema: UserSchema,
-	uri_template: "users/{id}",
-	methods: {
-		get: {
-			handler: async ({ id }, user) => {
-				return users.find((user) => user.id === id);
-			},
-		},
-		list: {
-			handler: async (_, user) => {
-				return users;
-			},
-		},
-		update: {
-			handler: async ({ id, ...data }, user) => {
-				const index = users.findIndex((user) => user.id === id);
-				if (index === -1) {
-					return null as any;
-				}
-			},
-		},
-	},
-});
 
-// Create the MCP server
 const server = createMCPServer({
 	name: "my_server",
-	resources: [noteResource, userResource, tagResource],
-	exposeTypes: [noteResource, userResource, tagResource],
+	resources: [noteResource],
+	exposeTypes: [noteResource],
 });
 
 server.listen(3080, () => {

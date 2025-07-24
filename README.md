@@ -58,9 +58,13 @@ const userResource = createResource({
   name: "user",
   schema: UserSchema,
   uri_template: "users/{id}",
-  handlers: {
-    get: async ({ id }) => users.find((u) => u.id === id),
-    list: async () => users,
+  methods: {
+    get: {
+      handler: async ({ id }, user) => users.find((u) => u.id === id),
+    },
+    list: {
+      handler: async (_, user) => users,
+    },
   },
 });
 
@@ -155,12 +159,22 @@ const noteResource = createResource({
   name: "note",
   schema: NoteSchema,
   uri_template: "notes/{id}",
-  handlers: {
-    get: async ({ id }) => db.notes.findUnique({ where: { id } }),
-    list: async () => db.notes.findMany(),
-    create: async (data) => db.notes.create({ data }),
-    update: async ({ id, ...data }) => db.notes.update({ where: { id }, data }),
-    delete: async ({ id }) => db.notes.delete({ where: { id } }),
+  methods: {
+    get: {
+      handler: async ({ id }, user) => db.notes.findUnique({ where: { id } }),
+    },
+    list: {
+      handler: async (_, user) => db.notes.findMany(),
+    },
+    create: {
+      handler: async (data, user) => db.notes.create({ data }),
+    },
+    update: {
+      handler: async ({ id, ...data }, user) => db.notes.update({ where: { id }, data }),
+    },
+    delete: {
+      handler: async ({ id }, user) => db.notes.delete({ where: { id } }),
+    },
   },
 });
 ```
@@ -228,7 +242,7 @@ const noteResource = createResource({
         query: z.string().describe("Search text in content."),
         authorId: z.string().optional().describe("Filter by author."),
       }),
-      handler: async ({ query, authorId }) => {
+      handler: async ({ query, authorId }, user) => {
         return db.notes.findMany({
           where: { content: { contains: query }, authorId },
         });
@@ -253,7 +267,7 @@ const noteResource = createResource({
       inputSchema: z.object({
         authorId: z.string(),
       }),
-      handler: async ({ authorId }) => {
+      handler: async ({ authorId }, user) => {
         const count = await db.notes.count({ where: { authorId } });
         return { count };
       },
@@ -290,18 +304,184 @@ This includes:
 
 ## 🔐 Authentication
 
-Secure your MCP server using OAuth 2.1 with minimal config:
+Secure your MCP server using OAuth 2.1 with minimal configuration. When authentication is enabled, **all endpoints are protected** and require a valid Bearer token.
+
+### Basic Setup
+
+The simplest setup requires only the `issuer` field:
 
 ```ts
-auth: {
-  issuer: 'https://your-auth-server.com',
-}
+const server = createMCPServer({
+  name: "my_secure_server",
+  resources: [userResource],
+  auth: {
+    issuer: 'https://your-auth-server.com',
+  },
+});
 ```
 
-`mcpresso` will:
+### Integrated OAuth Setup (Same Port)
 
-* Advertise security metadata at `/.well-known/oauth-protected-resource-metadata`
-* Validate Bearer JWTs automatically
+For the integrated approach where OAuth and MCP run on the same port:
+
+```ts
+const server = createMCPServer({
+  name: "my_secure_server",
+  resources: [userResource],
+  
+  // OAuth server integration (runs on same port)
+  oauth: {
+    enabled: true,
+    basePath: "/oauth", // OAuth endpoints at /oauth/authorize, /oauth/token, etc.
+    config: {
+      issuer: "https://api.example.com",
+      serverUrl: "https://api.example.com",
+    }
+  },
+  
+  // MCP authentication (protects all MCP endpoints)
+  auth: {
+    issuer: "https://api.example.com", // Same as OAuth server
+    serverUrl: "https://api.example.com",
+  },
+});
+```
+
+### Advanced Configuration
+
+For production environments, you can customize every aspect of authentication:
+
+```ts
+const server = createMCPServer({
+  name: "my_secure_server",
+  resources: [userResource],
+  auth: {
+    // Required: OAuth server URL (where tokens are issued)
+    issuer: 'https://auth.example.com',
+    
+    // Optional: Your MCP server's canonical URL (used as audience validation)
+    serverUrl: 'https://api.example.com',
+    
+    // Optional: Custom endpoint paths (relative to issuer/serverUrl)
+    jwksEndpoint: '/.well-known/jwks.json', // Relative to issuer
+    metadataEndpoint: '/.well-known/oauth-protected-resource', // Relative to serverUrl
+    
+    // Optional: JWT validation options
+    jwtOptions: {
+      issuer: 'https://auth.example.com',
+      audience: 'https://api.example.com',
+      clockTolerance: 30, // 30 seconds tolerance for clock skew
+      maxTokenAge: 3600, // Reject tokens older than 1 hour
+    },
+    
+    // Optional: Error handling
+    errorHandling: {
+      includeDetails: false, // Don't expose internal details in production
+      messages: {
+        missingToken: 'Authentication required',
+        invalidToken: 'Invalid authentication token',
+        expiredToken: 'Token has expired',
+        audienceMismatch: 'Token not valid for this service',
+        signatureFailure: 'Token signature verification failed',
+      }
+    },
+    
+    // Optional: Logging
+    logging: {
+      logSuccess: false, // Don't log successful auths
+      logFailures: true, // Log failed auths
+      logValidation: false, // Don't log validation details
+    },
+    
+    // Optional: MCP-specific options
+    requireResourceIndicator: true, // Require resource parameter
+    validateAudience: true, // Validate audience claims
+  },
+});
+```
+
+### Architecture Overview
+
+The authentication setup can be configured in **two ways**:
+
+#### Option 1: Separate Servers (Traditional)
+1. **OAuth Authorization Server** (`mcpresso-oauth-server` package)
+   - Runs on port 3000 (example)
+   - Issues JWT tokens
+   - Exposes JWKS endpoint at `/.well-known/jwks.json`
+   - Handles OAuth 2.1 flows
+
+2. **MCP Server** (`mcpresso` package) 
+   - Runs on port 3081 (example)
+   - Your actual API with resources and tools
+   - **All endpoints are protected** when auth is enabled
+   - Validates JWT tokens from the OAuth server
+   - Exposes metadata at `/.well-known/oauth-protected-resource`
+
+#### Option 2: Integrated Server (Same Port)
+1. **Combined Server** (`mcpresso` with OAuth integration)
+   - Runs on port 3081 (example)
+   - OAuth endpoints at `/oauth/authorize`, `/oauth/token`, etc.
+   - MCP endpoints protected by authentication
+   - **Everything on the same port**
+
+**Flow:**
+1. Client gets token from OAuth endpoints (`https://api.example.com/oauth/token`)
+2. Client uses token to access MCP endpoints (`https://api.example.com/`)
+3. MCP server validates token against its own JWKS
+4. If valid, request proceeds; if not, returns 401
+
+### Handler Signature with Authentication
+
+When authentication is enabled, all handlers receive the authenticated user data as a second parameter:
+
+```ts
+const userResource = createResource({
+  name: "user",
+  schema: UserSchema,
+  uri_template: "users/{id}",
+  methods: {
+    get: {
+      handler: async ({ id }, user) => {
+        // user contains the JWT payload (sub, email, etc.)
+        console.log("Authenticated user:", user);
+        return users.find((u) => u.id === id);
+      },
+    },
+    list: {
+      handler: async (_, user) => {
+        // user is undefined if no auth, or contains JWT payload if authenticated
+        return users;
+      },
+    },
+  },
+});
+```
+
+### Authentication Features
+
+`mcpresso` automatically:
+
+* **Protects all endpoints**: Only requests with valid Bearer tokens are allowed
+* **Validates JWTs**: Automatically verifies token signatures and expiration
+* **Injects user data**: Makes the JWT payload available in all handlers
+* **Advertises security metadata**: Exposes OAuth metadata at `/.well-known/oauth-protected-resource`
+* **Configurable validation**: Customize JWT validation, error messages, and logging
+* **Production ready**: Security-focused defaults with extensive customization options
+
+### Example: OAuth Integration
+
+See the complete OAuth example at [`packages/mcpresso/examples/oauth-mcpresso.ts`](./examples/oauth-mcpresso.ts) for a working implementation.
+
+### Handler Parameters
+
+All handlers follow this signature:
+```ts
+handler: async (args: InputSchema, user?: JWT_Payload) => Promise<Output>
+```
+
+- **`args`**: The input parameters (validated against your input schema)
+- **`user`**: The JWT payload from the Bearer token (undefined if no auth or auth disabled)
 
 ---
 
