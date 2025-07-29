@@ -280,14 +280,9 @@ SERVER_URL=http://localhost:3000
 # OAUTH_ISSUER will be automatically set to SERVER_URL if not provided
 JWT_SECRET=your-secret-key-change-this-in-production
 
-# Demo Client Credentials (for testing)
-# These are pre-configured in the OAuth server for easier testing
-OAUTH_CLIENT_ID=demo-client
-OAUTH_CLIENT_SECRET=demo-secret-change-in-production
-
-# TODO: Update these values for production
-# OAUTH_CLIENT_ID=your-secure-client-id
-# OAUTH_CLIENT_SECRET=your-secure-client-secret
+# OAuth Configuration
+# Dynamic client registration is used - no pre-configured credentials needed
+# Clients are automatically registered when they connect to the server
 # JWT_SECRET=your-secure-secret-key
 `;
   }
@@ -321,34 +316,162 @@ function generateOAuthConfig(config: ProjectConfig): string {
 import { MemoryStorage } from "mcpresso-oauth-server";
 import * as bcrypt from "bcryptjs";
 import { demoUsers } from "../data/users.js";
+import fs from "fs/promises";
+import path from "path";
+
+// File-based storage for Vercel serverless environment
+class FileStorage extends MemoryStorage {
+  private dataPath: string;
+
+  constructor() {
+    super();
+    this.dataPath = path.join(process.cwd(), "data", "oauth-data.json");
+    this.loadData();
+  }
+
+  private async loadData() {
+    try {
+      const data = await fs.readFile(this.dataPath, "utf-8");
+      const parsed = JSON.parse(data);
+      
+      // Restore clients
+      for (const client of parsed.clients || []) {
+        await super.createClient(client);
+      }
+      
+      // Restore users
+      for (const user of parsed.users || []) {
+        await super.createUser(user);
+      }
+      
+      // Restore authorization codes
+      for (const code of parsed.authorizationCodes || []) {
+        await super.createAuthorizationCode(code);
+      }
+      
+      // Restore access tokens
+      for (const token of parsed.accessTokens || []) {
+        await super.createAccessToken(token);
+      }
+      
+      // Restore refresh tokens
+      for (const token of parsed.refreshTokens || []) {
+        await super.createRefreshToken(token);
+      }
+    } catch (error) {
+      // File doesn't exist or is invalid, start with empty storage
+      console.log("Starting with fresh OAuth storage");
+    }
+  }
+
+  private async saveData() {
+    try {
+      // Get all data from memory storage
+      const clients = await super.listClients();
+      const users = await super.listUsers();
+      
+      // Get authorization codes (we need to access the private map)
+      const authorizationCodes = Array.from((this as any).authorizationCodes.values());
+      
+      // Get access tokens (we need to access the private map)
+      const accessTokens = Array.from((this as any).accessTokens.values());
+      
+      // Get refresh tokens (we need to access the private map)
+      const refreshTokens = Array.from((this as any).refreshTokens.values());
+      
+      const data = {
+        clients,
+        users,
+        authorizationCodes,
+        accessTokens,
+        refreshTokens,
+      };
+      
+      // Ensure data directory exists
+      await fs.mkdir(path.dirname(this.dataPath), { recursive: true });
+      await fs.writeFile(this.dataPath, JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error("Failed to save OAuth data:", error);
+    }
+  }
+
+  async createClient(client: any): Promise<void> {
+    await super.createClient(client);
+    await this.saveData();
+  }
+
+  async createUser(user: any): Promise<void> {
+    await super.createUser(user);
+    await this.saveData();
+  }
+
+  async createAuthorizationCode(code: any): Promise<void> {
+    await super.createAuthorizationCode(code);
+    await this.saveData();
+  }
+
+  async createAuthorizationCode(code: any): Promise<void> {
+    await super.createAuthorizationCode(code);
+    await this.saveData();
+  }
+
+  async createAccessToken(token: any): Promise<void> {
+    await super.createAccessToken(token);
+    await this.saveData();
+  }
+
+  async createRefreshToken(token: any): Promise<void> {
+    await super.createRefreshToken(token);
+    await this.saveData();
+  }
+
+  async updateClient(clientId: string, updates: any): Promise<void> {
+    await super.updateClient(clientId, updates);
+    await this.saveData();
+  }
+
+  async updateUser(userId: string, updates: any): Promise<void> {
+    await super.updateUser(userId, updates);
+    await this.saveData();
+  }
+
+  async deleteAuthorizationCode(code: string): Promise<void> {
+    await super.deleteAuthorizationCode(code);
+    await this.saveData();
+  }
+
+  async deleteAccessToken(token: string): Promise<void> {
+    await super.deleteAccessToken(token);
+    await this.saveData();
+  }
+
+  async deleteRefreshToken(token: string): Promise<void> {
+    await super.deleteRefreshToken(token);
+    await this.saveData();
+  }
+
+  async deleteRefreshTokensByAccessToken(accessTokenId: string): Promise<void> {
+    await super.deleteRefreshTokensByAccessToken(accessTokenId);
+    await this.saveData();
+  }
+}
 
 // Resolve base URL (same logic as in server.ts)
 const BASE_URL =
   process.env.SERVER_URL ||
   (process.env.VERCEL_URL ? \`https://\${process.env.VERCEL_URL}\` : \`http://localhost:\${process.env.PORT || 3000}\`);
 
-// Create storage with pre-configured demo client
-const storage = new MemoryStorage();
+// Create persistent storage for OAuth data
+const storage = new FileStorage();
 
-// Pre-seed the storage with a demo client for easier testing
-const demoClient = {
-  id: "demo-client",
-  secret: "demo-secret-change-in-production",
-  name: "${config.name} Demo Client",
-  type: "confidential" as const,
-  redirectUris: [\`\${BASE_URL}/callback\`],
-  scopes: ["read", "write"],
-  grantTypes: ["authorization_code"],
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
-
-// Initialize storage with demo client
+// Pre-seed the storage with demo users
 (async () => {
   try {
-    await storage.createClient(demoClient);
+    for (const user of demoUsers) {
+      await storage.createUser(user);
+    }
   } catch (error) {
-    // Client might already exist, ignore error
+    // Users might already exist, ignore error
   }
 })();
 
