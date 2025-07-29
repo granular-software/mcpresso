@@ -336,16 +336,7 @@ const demoClient = {
   secret: "demo-secret-change-in-production",
   name: "${config.name} Demo Client",
   type: "confidential" as const,
-  redirectUris: [
-    \`\${BASE_URL}/callback\`,
-    // Add common localhost redirect URIs for development, remove when you deploy to production
-    "http://localhost:3000/oauth/callback",
-    "http://localhost:3001/oauth/callback", 
-    "http://localhost:6274/oauth/callback", // MCP Inspector
-    "http://localhost:8080/oauth/callback",
-    "http://localhost:5173/oauth/callback", // Vite default
-    "http://localhost:4173/oauth/callback", // Vite preview
-  ],
+  redirectUris: [\`\${BASE_URL}/callback\`],
   scopes: ["read", "write"],
   grantTypes: ["authorization_code"],
   createdAt: new Date(),

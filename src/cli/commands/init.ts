@@ -40,7 +40,7 @@ async function getProjectDetails(options: any) {
     return {
       template: options.template || 'vercel',
       name: options.name || 'my-mcpresso-server',
-      authType: options.authType || 'none',
+      authType: options.oauth ? 'oauth' : (options.authType || 'none'),
       oauth: options.oauth || false,
       token: options.token || false,
       description: 'A mcpresso MCP server'
