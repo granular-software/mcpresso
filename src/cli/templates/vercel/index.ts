@@ -331,7 +331,8 @@ const BASE_URL =
   (process.env.VERCEL_URL ? \`https://\${process.env.VERCEL_URL}\` : \`http://localhost:\${process.env.PORT || 3000}\`);
 
 // Create storage for OAuth data
-// In production, this uses Vercel KV automatically
+// Local development: Memory storage (lifetime of process)
+// Vercel production: Vercel KV storage
 let storage: any;
 
 // Check if we're in Vercel environment
@@ -345,7 +346,7 @@ if (process.env.VERCEL) {
     storage = new MemoryStorage();
   }
 } else {
-  // Use memory storage for local development
+  // Use memory storage for local development (lifetime of process)
   storage = new MemoryStorage();
 }
 
