@@ -84,8 +84,6 @@ export default app;`;
       // Demo users with hashed passwords
       files['src/data/users.ts'] = generateUsersFile();
       files['src/auth/oauth.ts'] = generateOAuthConfig(config);
-      // Stub types for mcpresso-oauth-server (in case declaration files are not present in workspace)
-      files['src/types/mcpresso-oauth-server.d.ts'] = `declare module "mcpresso-oauth-server";`;
       // Note: MemoryStorage demo client seed can be done inside oauth.ts template.
     }
 
@@ -282,7 +280,14 @@ SERVER_URL=http://localhost:3000
 # OAUTH_ISSUER will be automatically set to SERVER_URL if not provided
 JWT_SECRET=your-secret-key-change-this-in-production
 
-# TODO: Update this value for production
+# Demo Client Credentials (for testing)
+# These are pre-configured in the OAuth server for easier testing
+OAUTH_CLIENT_ID=demo-client
+OAUTH_CLIENT_SECRET=demo-secret-change-in-production
+
+# TODO: Update these values for production
+# OAUTH_CLIENT_ID=your-secure-client-id
+# OAUTH_CLIENT_SECRET=your-secure-client-secret
 # JWT_SECRET=your-secure-secret-key
 `;
   }
@@ -321,6 +326,31 @@ import { demoUsers } from "../data/users.js";
 const BASE_URL =
   process.env.SERVER_URL ||
   (process.env.VERCEL_URL ? \`https://\${process.env.VERCEL_URL}\` : \`http://localhost:\${process.env.PORT || 3000}\`);
+
+// Create storage with pre-configured demo client
+const storage = new MemoryStorage();
+
+// Pre-seed the storage with a demo client for easier testing
+const demoClient = {
+  id: "demo-client",
+  secret: "demo-secret-change-in-production",
+  name: "${config.name} Demo Client",
+  type: "confidential" as const,
+  redirectUris: [\`\${BASE_URL}/callback\`],
+  scopes: ["read", "write"],
+  grantTypes: ["authorization_code"],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+// Initialize storage with demo client
+(async () => {
+  try {
+    await storage.createClient(demoClient);
+  } catch (error) {
+    // Client might already exist, ignore error
+  }
+})();
 
 // MCP auth configuration with integrated OAuth server
 export const oauthConfig = {
@@ -384,7 +414,7 @@ export const oauthConfig = {
   </html>\`;
       },
     },
-  }, new MemoryStorage()),
+  }, storage),
   serverUrl: BASE_URL,
   userLookup: async (jwt: { sub: string }) => {
     const u = demoUsers.find((x) => x.id === jwt.sub);
@@ -392,7 +422,7 @@ export const oauthConfig = {
     return {
       id: u.id,
       username: u.username,
-      email: u.email,
+      email: u.email || "",
       scopes: u.scopes,
       profile: u.profile,
     };
@@ -402,13 +432,10 @@ export const oauthConfig = {
 
 function generateUsersFile(): string {
   return `import { hashSync } from "bcryptjs";
+import type { OAuthUser } from "mcpresso-oauth-server";
 
-export interface DemoUser {
-  id: string;
-  username: string;
-  email: string;
+export interface DemoUser extends OAuthUser {
   hashedPassword: string;
-  scopes: string[];
   profile: {
     name: string;
     role: string;
@@ -424,6 +451,8 @@ export const demoUsers: DemoUser[] = [
     email: "alice@example.com",
     hashedPassword: hashSync("alice123", 10),
     scopes: ["read", "write"],
+    createdAt: new Date(),
+    updatedAt: new Date(),
     profile: { name: "Alice", role: "Engineer", department: "Engineering" },
   },
   {
@@ -432,6 +461,8 @@ export const demoUsers: DemoUser[] = [
     email: "bob@example.com",
     hashedPassword: hashSync("bob123", 10),
     scopes: ["read"],
+    createdAt: new Date(),
+    updatedAt: new Date(),
     profile: { name: "Bob", role: "Marketer", department: "Marketing" },
   },
 ];`;
