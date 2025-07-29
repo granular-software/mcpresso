@@ -183,7 +183,39 @@ async function deployToPlatform(platform: any) {
     }
   }
 
+  // Special handling for Vercel - set up KV storage
+  if (platform.name === 'Vercel Functions') {
+    await setupVercelKV();
+  }
+
   // Execute deployment
   console.log(chalk.gray(`🚀 Running: ${platform.command}`));
   execSync(platform.command, { stdio: 'inherit' });
+}
+
+async function setupVercelKV() {
+  console.log(chalk.blue('🔧 Setting up Vercel KV storage...'));
+  
+  try {
+    // Check if KV is already set up
+    const kvList = execSync('vercel kv list', { stdio: 'pipe', encoding: 'utf8' });
+    if (kvList.includes('mcpresso-oauth')) {
+      console.log(chalk.green('✅ Vercel KV already configured'));
+      return;
+    }
+  } catch (error) {
+    // KV doesn't exist, create it
+  }
+
+  try {
+    console.log(chalk.gray('📦 Creating Vercel KV database...'));
+    execSync('vercel kv create mcpresso-oauth', { stdio: 'inherit' });
+    
+    console.log(chalk.green('✅ Vercel KV created successfully'));
+    console.log(chalk.gray('💡 KV storage will be automatically linked to your deployment'));
+  } catch (error) {
+    console.log(chalk.yellow('⚠️  Could not create Vercel KV automatically'));
+    console.log(chalk.gray('   You can create it manually with: vercel kv create mcpresso-oauth'));
+    console.log(chalk.gray('   Or use Vercel Postgres instead'));
+  }
 } 
