@@ -330,9 +330,24 @@ const BASE_URL =
   process.env.SERVER_URL ||
   (process.env.VERCEL_URL ? \`https://\${process.env.VERCEL_URL}\` : \`http://localhost:\${process.env.PORT || 3000}\`);
 
-// Create memory storage for OAuth data
-// In production, this should be replaced with Vercel KV or Postgres
-const storage = new MemoryStorage();
+// Create storage for OAuth data
+// In production, this uses Vercel KV automatically
+let storage: any;
+
+// Check if we're in Vercel environment
+if (process.env.VERCEL) {
+  // Use Vercel KV in production
+  try {
+    const { VercelKVStorage } = await import('mcpresso-oauth-server');
+    storage = new VercelKVStorage();
+  } catch (error) {
+    console.warn('VercelKVStorage not available, falling back to MemoryStorage');
+    storage = new MemoryStorage();
+  }
+} else {
+  // Use memory storage for local development
+  storage = new MemoryStorage();
+}
 
 // Pre-seed the storage with demo users
 (async () => {
@@ -497,4 +512,6 @@ export const tokenConfig = {
     logValidation: false
   }
 };`;
-} 
+}
+
+ 

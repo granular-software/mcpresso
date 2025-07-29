@@ -5,6 +5,7 @@ import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 
+
 export const deploy = new Command('deploy')
   .description('Deploy your mcpresso server to production')
   .option('-p, --platform <platform>', 'Deployment platform')
@@ -183,9 +184,9 @@ async function deployToPlatform(platform: any) {
     }
   }
 
-  // Special handling for Vercel - set up KV storage
+  // Special handling for Vercel - automatically set up KV storage
   if (platform.name === 'Vercel Functions') {
-    await setupVercelKV();
+    await setupVercelStorage();
   }
 
   // Execute deployment
@@ -193,14 +194,16 @@ async function deployToPlatform(platform: any) {
   execSync(platform.command, { stdio: 'inherit' });
 }
 
-async function setupVercelKV() {
+async function setupVercelStorage() {
   console.log(chalk.blue('🔧 Setting up Vercel KV storage...'));
   
   try {
-    // Check if KV is already set up
+    // Check if KV already exists
+    console.log(chalk.gray('📦 Checking for existing Vercel KV...'));
     const kvList = execSync('vercel kv list', { stdio: 'pipe', encoding: 'utf8' });
+    
     if (kvList.includes('mcpresso-oauth')) {
-      console.log(chalk.green('✅ Vercel KV already configured'));
+      console.log(chalk.green('✅ Vercel KV already exists'));
       return;
     }
   } catch (error) {
@@ -208,14 +211,19 @@ async function setupVercelKV() {
   }
 
   try {
+    // Create KV database using CLI
     console.log(chalk.gray('📦 Creating Vercel KV database...'));
     execSync('vercel kv create mcpresso-oauth', { stdio: 'inherit' });
     
     console.log(chalk.green('✅ Vercel KV created successfully'));
-    console.log(chalk.gray('💡 KV storage will be automatically linked to your deployment'));
+    console.log(chalk.gray('💡 KV will be automatically linked to your deployment'));
+    
   } catch (error) {
-    console.log(chalk.yellow('⚠️  Could not create Vercel KV automatically'));
+    console.log(chalk.yellow('⚠️  Could not set up Vercel KV automatically'));
     console.log(chalk.gray('   You can create it manually with: vercel kv create mcpresso-oauth'));
-    console.log(chalk.gray('   Or use Vercel Postgres instead'));
+    console.log(chalk.gray('   Or use Vercel Postgres: vercel postgres create'));
+    console.log(chalk.gray('   Error:'), error);
   }
-} 
+}
+
+ 

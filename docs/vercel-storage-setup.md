@@ -42,17 +42,20 @@ The OAuth server needs persistent storage to maintain client registrations, user
 
 ## Automatic Setup
 
-The CLI will automatically attempt to set up Vercel KV during deployment:
+The CLI automatically sets up Vercel KV storage during deployment:
 
 ```bash
+# Create and deploy your project
+bun run mcpresso init my-oauth-app --template vercel --oauth --yes
+cd my-oauth-app
 bun run mcpresso deploy
 ```
 
 This will:
 1. Check if Vercel KV exists
-2. Create it if it doesn't exist
-3. Link it to your project
-4. Deploy your application
+2. Create it automatically if it doesn't exist
+3. Deploy your application
+4. Use Vercel KV storage in production automatically
 
 ## Manual Storage Implementation
 
