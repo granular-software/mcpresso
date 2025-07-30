@@ -328,4 +328,37 @@ async function setupRailwayDeployment() {
   console.log(chalk.green('✅ Railway setup complete'));
   console.log(chalk.gray('   Your app will be deployed with PostgreSQL database'));
   console.log(chalk.gray('   Demo users will be created automatically'));
+
+  // Poll for DATABASE_URL to appear (Postgres service can take a few seconds)
+  console.log(chalk.gray('   Waiting for DATABASE_URL ...'));
+  let dbUrl = '';
+  for (let i = 0; i < 20; i++) { // up to ~1 min (20*3s)
+    try {
+      dbUrl = execSync('railway variables get DATABASE_URL', {
+        stdio: 'pipe',
+        encoding: 'utf8',
+      }).trim();
+    } catch {
+      /* ignore */
+    }
+    if (dbUrl) break;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+
+  if (dbUrl) {
+    
+    console.log(chalk.green('✅ Database URL configured'));
+    console.log(chalk.gray('   The OAuth server will use Railway PostgreSQL for persistent storage'));
+
+    // Ensure the main service (current) has DATABASE_URL set
+    try {
+      execSync(`railway variables set DATABASE_URL="${dbUrl}"`, { stdio: 'inherit' });
+      console.log(chalk.green('✅ DATABASE_URL variable set for current service'));
+    } catch (setErr) {
+      console.log(chalk.yellow('⚠️  Could not set DATABASE_URL variable automatically'));
+      console.log(chalk.gray('   You can set it manually with: railway variables set DATABASE_URL="<url>"'));
+    }
+  } else {
+    console.log(chalk.yellow('⚠️  DATABASE_URL not available yet; app will still start once the variable propagates'));
+  }
 }

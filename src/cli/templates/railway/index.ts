@@ -41,7 +41,6 @@ export const railwayTemplate: Template = {
 		typecheck: "tsc --noEmit",
 		clean: "rm -rf dist",
 		deploy: "railway up",
-		postinstall: "npm run build",
 	}),
 
 	generateFiles: async (config: ProjectConfig) => {
