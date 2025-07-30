@@ -841,7 +841,7 @@ export class PostgresStorage implements MCPOAuthStorage {
 function generateOAuthConfig(config: ProjectConfig): string {
   return `import { MCPOAuthServer } from "mcpresso-oauth-server";
 import { MemoryStorage } from "mcpresso-oauth-server";
-import { PostgresStorage } from "mcpresso/storage/postgres-storage";
+import { PostgresStorage } from "../storage/postgres-storage.js";
 import * as bcrypt from "bcryptjs";
 import { demoUsers } from "../data/users.js";
 

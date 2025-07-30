@@ -54,7 +54,7 @@ export class PostgresStorage implements MCPOAuthStorage {
           client_id VARCHAR(255) NOT NULL,
           user_id VARCHAR(255) NOT NULL,
           redirect_uri VARCHAR(500) NOT NULL,
-          scope TEXT[] NOT NULL,
+          scope VARCHAR(500) NOT NULL,
           resource VARCHAR(500),
           code_challenge VARCHAR(255),
           code_challenge_method VARCHAR(10),
@@ -68,8 +68,7 @@ export class PostgresStorage implements MCPOAuthStorage {
           access_token VARCHAR(255) PRIMARY KEY,
           client_id VARCHAR(255) NOT NULL,
           user_id VARCHAR(255) NOT NULL,
-          scope TEXT[] NOT NULL,
-          resource VARCHAR(500),
+          scope VARCHAR(500) NOT NULL,
           expires_at TIMESTAMP NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -81,7 +80,7 @@ export class PostgresStorage implements MCPOAuthStorage {
           access_token_id VARCHAR(255) NOT NULL,
           client_id VARCHAR(255) NOT NULL,
           user_id VARCHAR(255) NOT NULL,
-          scope TEXT[] NOT NULL,
+          scope VARCHAR(500) NOT NULL,
           expires_at TIMESTAMP NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
