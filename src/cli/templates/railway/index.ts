@@ -31,12 +31,12 @@ export const railwayTemplate: Template = {
     '@types/pg': '^8.10.9',
     '@types/bcryptjs': '^2.4.2',
     'typescript': '^5.0.0',
-    'bun-types': 'latest'
+    'tsx': '^4.0.0'
   }),
 
   getScripts: () => ({
-    'dev': 'bun run --watch src/server.ts',
-    'build': 'bun build src/server.ts --outdir dist --target node',
+    'dev': 'tsx watch src/server.ts',
+    'build': 'tsc',
     'start': 'node dist/server.js',
     'typecheck': 'tsc --noEmit',
     'clean': 'rm -rf dist',
@@ -100,34 +100,37 @@ export const railwayTemplate: Template = {
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
-    "types": ["bun-types"]
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }`;
 
     // Dockerfile for Railway
-    files['Dockerfile'] = `FROM oven/bun:1 as base
+    files['Dockerfile'] = `FROM node:18-alpine as base
 WORKDIR /usr/src/app
 
 # Install dependencies into temp directory
-COPY package.json bun.lockb ./
-RUN bun install --frozen-lockfile
+COPY package*.json ./
+RUN npm ci --only=production
 
 # Copy source code into container
 COPY . .
 
 # Build the application
-RUN bun run build
+RUN npm run build
 
 # Start fresh from a smaller base image
-FROM oven/bun:1-slim
+FROM node:18-alpine
 WORKDIR /usr/src/app
 
 # Copy built assets from previous stage
@@ -137,14 +140,14 @@ COPY --from=base /usr/src/app/package.json ./
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 bun
-USER bun
+RUN adduser --system --uid 1001 nodejs
+USER nodejs
 
 EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 
-CMD ["bun", "run", "start"]`;
+CMD ["npm", "start"]`;
 
     return files;
   }
@@ -175,6 +178,8 @@ import { exampleResource } from "./resources/example.js";
 
 // Initialize database and create demo users
 import { initializeDatabase } from './db/init.js';
+
+// Initialize database
 await initializeDatabase();
 
 // Resolve the canonical base URL of this server for both dev and production.
@@ -239,7 +244,7 @@ const NoteSchema = z.object({
 });
 
 // In-memory storage (replace with your database)
-const notes: z.infer<typeof NoteSchema>[] = [];
+const notes = [];
 
 // Create the notes resource
 export const exampleResource = createResource({
