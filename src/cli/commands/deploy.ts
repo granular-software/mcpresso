@@ -311,12 +311,12 @@ async function setupRailwayDeployment() {
     console.log(chalk.green(`✅ Service '${serviceName}' already exists`));
   } catch {
     console.log(chalk.gray(`   Creating service '${serviceName}'...`));
-    execSync(`railway service create --name ${serviceName}`, { stdio: 'inherit' });
+    execSync(`railway add --service ${serviceName}`, { stdio: 'inherit' });
   }
 
   // Deploy code to that service and wait until finished
   try {
-    execSync(`railway up --service ${serviceName} --detach --wait`, { stdio: 'inherit' });
+    execSync(`railway up --service ${serviceName} --ci`, { stdio: 'inherit' });
     console.log(chalk.green('✅ Upload finished – build in progress on Railway'));
   } catch (deployErr) {
     console.log(chalk.red('❌ railway up failed'));
