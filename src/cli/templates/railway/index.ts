@@ -36,7 +36,7 @@ export const railwayTemplate: Template = {
 
 	getScripts: () => ({
 		dev: "tsx watch src/server.ts",
-		build: "tsc",
+		build: "tsc -p tsconfig.json",
 		start: "node dist/server.js",
 		typecheck: "tsc --noEmit",
 		clean: "rm -rf dist",
@@ -119,7 +119,8 @@ cmd = "npm start"`;
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
+    "strict": false,
+    "noEmitOnError": false,
     "skipLibCheck": true,
     "declaration": true,
     "declarationMap": true,

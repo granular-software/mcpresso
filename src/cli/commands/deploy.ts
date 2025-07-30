@@ -310,7 +310,7 @@ async function setupRailwayDeployment() {
       } catch (error) {
         // Add PostgreSQL service using the correct command
         console.log(chalk.gray('   Adding PostgreSQL service...'));
-        execSync('railway add postgresql', { stdio: 'inherit' });
+        execSync('railway add --database postgres', { stdio: 'inherit' });
         console.log(chalk.green('✅ PostgreSQL database added'));
       }
     
@@ -327,6 +327,15 @@ async function setupRailwayDeployment() {
       
       console.log(chalk.green('✅ Database URL configured'));
       console.log(chalk.gray('   The OAuth server will use Railway PostgreSQL for persistent storage'));
+
+      // Ensure the main service (current) has DATABASE_URL set
+      try {
+        execSync(`railway variables set DATABASE_URL="${dbUrl}"`, { stdio: 'inherit' });
+        console.log(chalk.green('✅ DATABASE_URL variable set for current service'));
+      } catch (setErr) {
+        console.log(chalk.yellow('⚠️  Could not set DATABASE_URL variable automatically'));
+        console.log(chalk.gray('   You can set it manually with: railway variables set DATABASE_URL="<url>"'));
+      }
       
     } catch (dbError) {
       console.log(chalk.yellow('⚠️  Database URL not immediately available'));
