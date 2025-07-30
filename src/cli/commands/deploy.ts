@@ -47,6 +47,13 @@ export const deploy = new Command('deploy')
       console.log(chalk.green.bold('\n✅ Deployment successful!'));
       console.log(chalk.gray('Your MCP server is now live! 🎉'));
 
+      if (platform.name === 'Vercel Functions') {
+        console.log('\n' + chalk.yellow('────────  Final Production Steps  ────────'));
+        console.log(chalk.white('1. Make the deployment public (Dashboard > Settings > Deployment Protection > Disabled).'));
+        console.log(chalk.white('2. Link the Blob store to this project if not already linked:'));
+        console.log('   ' + chalk.cyan('vercel blob store link <store_id>') + '\n');
+      }
+
     } catch (error) {
       console.error(chalk.red('❌ Deployment failed:'), error);
       process.exit(1);
@@ -228,31 +235,31 @@ async function setupVercelStorage(blobStoreId?: string) {
     console.log(chalk.green(`✅ Using Blob store: ${storeId}`));
     return storeId;
   } catch (_) {
-    // Could not confirm via CLI. Ask the user.
-    console.log('\n' + chalk.yellow('────────────────────────────────────────────'));
-    console.log(chalk.blueBright('ℹ️  Could not confirm the Blob store via CLI.'));
-    console.log(chalk.yellow('────────────────────────────────────────────\n'));
+    // Attempt automatic creation & linking
+    try {
+      console.log(chalk.gray('📦 Blob store not found – creating...'));
+      const output = execSync(`vercel blob store add ${storeId} --region iad1 --yes`, {
+        stdio: 'pipe',
+        encoding: 'utf8',
+      });
+      const m = output.match(/\((store_[A-Za-z0-9]+)/);
+      const createdId = m ? m[1] : storeId;
+      console.log(chalk.green(`✅ Blob store created and linked: ${createdId}`));
+      return createdId;
+    } catch {
+      // Fallback to manual instructions
+      console.log('\n' + chalk.yellow('────────────────────────────────────────────'));
+      console.log(chalk.blueBright('ℹ️  Automatic creation failed or requires additional permissions.'));
+      console.log(chalk.yellow('────────────────────────────────────────────\n'));
 
-    const { hasStore } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'hasStore',
-        message: `Have you already created the Blob store '${storeId}'?`,
-        default: true,
-      },
-    ]);
+      console.log(`${chalk.white('1. Create a new Blob store OR link an existing one:')}`);
+      console.log('   ' + chalk.cyan(`vercel blob store add ${storeId} --region iad1`) + chalk.gray('   # new')); 
+      console.log('   ' + chalk.cyan('vercel blob store link <store_id>') + chalk.gray('           # existing') + '\n');
 
-    if (hasStore) {
-      console.log(chalk.green('👍  Continuing with deployment…'));
-      return storeId;
+      console.log(`${chalk.white('2. Deploy again using the store ID:')}`);
+      console.log('   ' + chalk.cyan(`npx mcpresso deploy --blob-store-id <store_id>`)+ '\n');
+      process.exit(1);
     }
-
-    console.log(`${chalk.white('1. Create the Blob store (run once):')}`);
-    console.log('   ' + chalk.cyan(`vercel blob store add ${storeId} --region iad1`) + '\n');
-
-    console.log(`${chalk.white('2. Deploy again:')}`);
-    console.log('   ' + chalk.cyan(`npx mcpresso deploy --blob-store-id <store_id_here>`)+ '\n');
-    process.exit(1);
   }
 }
 

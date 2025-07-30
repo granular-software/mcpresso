@@ -1,5 +1,6 @@
 import { Template } from '../types.js';
 import { ProjectConfig } from '../../utils/project-creator.js';
+import crypto from 'crypto';
 
 export const vercelTemplate: Template = {
   id: 'vercel',
@@ -39,6 +40,9 @@ export const vercelTemplate: Template = {
   generateFiles: async (config: ProjectConfig) => {
     const files: Record<string, string> = {};
 
+    // Generate a random salt for hashing blob keys
+    const salt = crypto.randomBytes(32).toString('hex');
+
     // Server file
     files['src/server.ts'] = generateServerFile(config);
     
@@ -77,8 +81,11 @@ export const vercelTemplate: Template = {
 
 export default app;`;
 
-    // Environment variables
-    files['.env'] = generateEnvFile(config);
+    // Environment variables (inject the salt)
+    files['.env'] = generateEnvFile(config, salt);
+
+    // Utility for salted hashing of blob keys
+    files['src/utils/blobKey.ts'] = generateBlobKeyUtil();
 
     // OAuth config if enabled
     if (config.oauth) {
@@ -256,7 +263,7 @@ export const exampleResource = createResource({
 });`;
 }
 
-function generateEnvFile(config: ProjectConfig): string {
+function generateEnvFile(config: ProjectConfig, salt: string): string {
   let envContent = `# Environment Variables for ${config.name}
 # Copy this file to .env and update the values
 
@@ -312,9 +319,28 @@ BEARER_TOKEN=sk-1234567890abcdef
 # External API Keys (if needed)
 # API_KEY=your-api-key
 # WEBHOOK_SECRET=your-webhook-secret
+
+# Salt for hashing public blob keys (generated once per project)
+BLOB_KEY_SALT=${salt}
 `;
 
   return envContent;
+}
+
+function generateBlobKeyUtil(): string {
+  return `import crypto from 'crypto';
+
+const SALT = process.env.BLOB_KEY_SALT || 'dev-salt';
+
+export function saltedHash(ns: string, id: string) {
+  return crypto
+    .createHash('sha256')
+    .update(
+      \`\${ns}:\${id}:\${SALT}\`,
+      'utf8'
+    )
+    .digest('hex');
+}`;
 }
 
 function generateOAuthConfig(config: ProjectConfig): string {
@@ -341,6 +367,8 @@ if (process.env.VERCEL) {
   // Attempt to use Vercel Blob as the persistent store in production
   try {
     const { put, list, del } = await import('@vercel/blob');
+    const { saltedHash } = await import('../utils/blobKey.js');
+
     const encode = (obj: any) => JSON.stringify(obj);
     const decode = async (url: string) => {
       try {
@@ -351,11 +379,11 @@ if (process.env.VERCEL) {
         return null;
       }
     };
-    const path = (prefix: string, id: string) => \`\${prefix}/\${id}.json\`;
+    const path = (prefix: string, id: string) => \`\${prefix}/\${saltedHash(prefix, id)}.json\`;
     storage = {
       async createClient(client: any) {
         await put(path('client', client.id), encode(client), {
-          access: 'private',
+          access: 'public',
           contentType: 'application/json',
         });
       },
@@ -366,7 +394,7 @@ if (process.env.VERCEL) {
       },
       async createUser(user: any) {
         await put(path('user', user.id), encode(user), {
-          access: 'private',
+          access: 'public',
           contentType: 'application/json',
         });
       },
@@ -377,7 +405,7 @@ if (process.env.VERCEL) {
       },
       async createCode(codeObj: any) {
         await put(path('code', codeObj.code), encode({ ...codeObj, created: Date.now() }), {
-          access: 'private',
+          access: 'public',
           contentType: 'application/json',
         });
       },
@@ -388,7 +416,7 @@ if (process.env.VERCEL) {
       },
       async createToken(token: any) {
         await put(path('token', token.access_token), encode({ ...token, created: Date.now() }), {
-          access: 'private',
+          access: 'public',
           contentType: 'application/json',
         });
       },
