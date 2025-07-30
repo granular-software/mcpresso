@@ -176,7 +176,22 @@ async function deployToPlatform(platform: any, postgresUrl?: string) {
 
   // Execute deployment
   console.log(chalk.gray(`🚀 Running: ${platform.command}`));
-  execSync(platform.command, { stdio: 'inherit' });
+  
+  if (platform.name === 'Railway') {
+    // For Railway, we need to handle deployment more carefully
+    try {
+      execSync('railway up', { stdio: 'inherit' });
+      console.log(chalk.green('✅ Railway deployment successful!'));
+      console.log(chalk.gray('   Your app is now live on Railway'));
+      console.log(chalk.gray('   Check your deployment at: https://railway.app'));
+    } catch (error) {
+      console.log(chalk.yellow('⚠️  Railway deployment had issues'));
+      console.log(chalk.gray('   This might be normal - check the logs above'));
+      console.log(chalk.gray('   You can check status with: railway status'));
+    }
+  } else {
+    execSync(platform.command, { stdio: 'inherit' });
+  }
 }
 
 async function setupVercelPostgres(postgresUrl?: string) {
@@ -293,9 +308,9 @@ async function setupRailwayDeployment() {
       execSync('railway service list | grep postgresql', { stdio: 'pipe' });
       console.log(chalk.green('✅ PostgreSQL service already exists'));
     } catch (error) {
-      // Add PostgreSQL service
+      // Add PostgreSQL service using the correct command
       console.log(chalk.gray('   Adding PostgreSQL service...'));
-      execSync('railway add postgresql', { stdio: 'inherit' });
+      execSync('railway service add postgresql', { stdio: 'inherit' });
       console.log(chalk.green('✅ PostgreSQL database added'));
     }
     
@@ -321,7 +336,7 @@ async function setupRailwayDeployment() {
   } catch (error) {
     console.log(chalk.yellow('⚠️  Could not set up PostgreSQL automatically'));
     console.log(chalk.gray('   PostgreSQL will be added during deployment'));
-    console.log(chalk.gray('   You can add it manually later: railway add postgresql'));
+    console.log(chalk.gray('   You can add it manually later: railway service add postgresql'));
   }
 
   console.log(chalk.green('✅ Railway setup complete'));

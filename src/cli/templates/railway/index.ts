@@ -151,142 +151,165 @@ CMD ["bun", "run", "start"]`;
 };
 
 function generateServerFile(config: ProjectConfig): string {
-  return `import { createMCPServer } from 'mcpresso';
-import { exampleResource } from './resources/example.js';
-import { initializeDatabase } from './db/init.js';
+  const authImports = [];
+  const authConfigs = [];
+  
+  if (config.oauth) {
+    authImports.push('import { oauthConfig } from "./auth/oauth.js";');
+    authConfigs.push('auth: oauthConfig,');
+  }
+  
+  if (config.token) {
+    authImports.push('import { tokenConfig } from "./auth/token.js";');
+    authConfigs.push('auth: tokenConfig,');
+  }
+  
+  const authImport = authImports.length > 0 ? `\n${authImports.join('\n')}` : '';
+  const authConfig = authConfigs.length > 0 ? `\n  ${authConfigs.join('\n  ')}` : '';
 
-// Import auth configurations
-${config.oauth ? "import { oauthConfig } from './auth/oauth.js';" : ''}
-${config.token ? "import { tokenConfig } from './auth/token.js';" : ''}
+  return `import { z } from "zod";
+import { createResource, createMCPServer } from "mcpresso";${authImport}
+
+// Import your resources
+import { exampleResource } from "./resources/example.js";
 
 // Initialize database and create demo users
+import { initializeDatabase } from './db/init.js';
 await initializeDatabase();
 
-// Create MCP server with authentication
-const server = createMCPServer({
+// Resolve the canonical base URL of this server for both dev and production.
+// 1. Use explicit SERVER_URL if provided.
+// 2. In Railway production, RAILWAY_STATIC_URL is automatically injected.
+// 3. Fallback to localhost when running locally.
+const BASE_URL =
+  process.env.SERVER_URL ||
+  (process.env.RAILWAY_STATIC_URL ? \`https://\${process.env.RAILWAY_STATIC_URL}\` : \`http://localhost:\${process.env.PORT || 3000}\`);
+
+// Create the MCP server (Express version)
+const expressApp = createMCPServer({
   name: "${config.name}",
-  resources: [exampleResource],
-  ${config.oauth || config.token ? `
-  auth: {
-    ${config.oauth ? `
-    // OAuth 2.1 authentication
-    oauth: oauthConfig.oauth,
-    serverUrl: oauthConfig.serverUrl,
-    userLookup: oauthConfig.userLookup,
-    ` : ''}
-    ${config.token ? `
-    // Bearer token authentication
-    bearerToken: tokenConfig.bearerToken,
-    ` : ''}
-  },
-  ` : ''}
-  // HTTP server configuration
-  http: {
-    port: parseInt(process.env.PORT || '3000'),
-    cors: {
-      origin: process.env.NODE_ENV === 'production' 
-        ? [process.env.ALLOWED_ORIGINS || '*']
-        : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:4173'],
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  serverUrl: BASE_URL,
+  resources: [exampleResource],${authConfig}
+  exposeTypes: true,
+  serverMetadata: {
+    name: "${config.name}",
+    version: "1.0.0",
+    description: "${config.description}",
+    url: process.env.SERVER_URL || "https://your-railway-app.railway.app",
+    license: {
+      name: "MIT",
+      url: "https://opensource.org/licenses/MIT",
     },
-    trustProxy: true,
-    enableCompression: true,
-    enableHelmet: true,
-    enableRateLimit: true,
-    rateLimitConfig: {
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // limit each IP to 100 requests per windowMs
-      message: 'Too many requests from this IP, please try again later.'
-    }
-  }
+    capabilities: {
+      authentication: ${config.oauth || config.token},
+      rateLimiting: false,
+      retries: true,
+      streaming: true,
+    },
+  },
 });
 
-// Health check endpoint
-server.get('/health', (c) => {
-  return c.json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+// Export for Railway deployment
+export default expressApp;
+
+// Local development server
+if (process.argv[1] === new URL(import.meta.url).pathname) {
+  const port = process.env.PORT || 3000;
+  console.log("Starting mcpresso server on port " + port);
+  console.log("MCP Inspector URL: http://localhost:" + port);
+  
+  expressApp.listen(port, () => {
+    console.log("Server running on http://localhost:" + port);
   });
-});
-
-// Start the server
-console.log('🚀 Starting MCP server...');
-console.log('📊 Environment:', process.env.NODE_ENV || 'development');
-console.log('🔗 Server URL:', process.env.SERVER_URL || 'http://localhost:3000');
-${config.oauth ? "console.log('🔐 OAuth 2.1 enabled');" : ''}
-${config.token ? "console.log('🔑 Bearer token authentication enabled');" : ''}
-console.log('');
-
-server.listen();
-console.log('✅ MCP server is running!');
-console.log('📖 API Documentation: http://localhost:3000/docs');
-console.log('🔍 Health Check: http://localhost:3000/health');
-console.log('');
-console.log('🎯 Quick Test:');
-console.log('  curl http://localhost:3000/health');
-console.log('  curl http://localhost:3000/.well-known/mcp');
-console.log('');`;
+}`;
 }
 
 function generateResourceExample(config: ProjectConfig): string {
-  return `import { createResource } from 'mcpresso';
+  return `import { z } from "zod";
+import { createResource } from "mcpresso";
 
+// Example: A simple note resource
+const NoteSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  content: z.string(),
+  authorId: z.string(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+// In-memory storage (replace with your database)
+const notes: z.infer<typeof NoteSchema>[] = [];
+
+// Create the notes resource
 export const exampleResource = createResource({
-  name: 'example',
-  description: 'Example resource for ${config.name}',
-  
-  // List items
-  list: async (context) => {
-    console.log('📋 Listing items...');
-    return {
-      items: [
-        { id: '1', name: 'Example Item 1', description: 'This is an example item' },
-        { id: '2', name: 'Example Item 2', description: 'Another example item' },
-      ]
-    };
+  name: "note",
+  schema: NoteSchema,
+  uri_template: "notes/{id}",
+  methods: {
+    get: {
+      handler: async ({ id }) => {
+        return notes.find((note) => note.id === id);
+      },
+    },
+    list: {
+      handler: async () => {
+        return notes;
+      },
+    },
+    create: {
+      handler: async (data) => {
+        const newNote = {
+          id: Math.random().toString(36).substr(2, 9),
+          title: data.title || "",
+          content: data.content || "",
+          authorId: data.authorId || "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        notes.push(newNote);
+        return newNote;
+      },
+    },
+    update: {
+      handler: async ({ id, ...data }) => {
+        const index = notes.findIndex((note) => note.id === id);
+        if (index === -1) {
+          throw new Error("Note not found");
+        }
+        const updatedNote = { 
+          ...notes[index], 
+          ...data, 
+          updatedAt: new Date() 
+        };
+        notes[index] = updatedNote;
+        return updatedNote;
+      },
+    },
+    delete: {
+      handler: async ({ id }) => {
+        const index = notes.findIndex((note) => note.id === id);
+        if (index === -1) {
+          return { success: false };
+        }
+        notes.splice(index, 1);
+        return { success: true };
+      },
+    },
+    search: {
+      description: "Search notes by title or content",
+      inputSchema: z.object({
+        query: z.string().describe("Search query"),
+      }),
+      handler: async ({ query }) => {
+        return notes.filter(
+          (note) =>
+            note.title.toLowerCase().includes(query.toLowerCase()) ||
+            note.content.toLowerCase().includes(query.toLowerCase())
+        );
+      },
+    },
   },
-
-  // Get a specific item
-  get: async (context, id) => {
-    console.log(\`📄 Getting item: \${id}\`);
-    return {
-      id,
-      name: \`Example Item \${id}\`,
-      description: \`This is example item \${id}\`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-  },
-
-  // Create a new item
-  create: async (context, data) => {
-    console.log('➕ Creating new item:', data);
-    return {
-      id: Date.now().toString(),
-      ...data,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-  },
-
-  // Update an item
-  update: async (context, id, data) => {
-    console.log(\`✏️  Updating item \${id}:\`, data);
-    return {
-      id,
-      ...data,
-      updatedAt: new Date().toISOString()
-    };
-  },
-
-  // Delete an item
-  delete: async (context, id) => {
-    console.log(\`🗑️  Deleting item: \${id}\`);
-    return { success: true };
-  }
 });`;
 }
 
