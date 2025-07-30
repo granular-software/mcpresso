@@ -12,7 +12,7 @@ export const deploy = new Command('deploy')
   .description('Deploy your mcpresso server to production')
   .option('-p, --platform <platform>', 'Deployment platform')
   .option('-y, --yes', 'Skip confirmation prompts')
-  .option('--blob-store-id <id>', 'Existing Vercel Blob store ID to use')
+  .option('--postgres-url <url>', 'PostgreSQL connection string')
   .action(async (options) => {
     try {
       console.log(chalk.blue.bold('🚀 Deploying mcpresso server...\n'));
@@ -42,7 +42,7 @@ export const deploy = new Command('deploy')
       execSync('npm run build', { stdio: 'inherit' });
 
       // Deploy based on platform
-      await deployToPlatform(platform, options.blobStoreId);
+      await deployToPlatform(platform, options.postgresUrl);
 
       console.log(chalk.green.bold('\n✅ Deployment successful!'));
       console.log(chalk.gray('Your MCP server is now live! 🎉'));
@@ -50,8 +50,8 @@ export const deploy = new Command('deploy')
       if (platform.name === 'Vercel Functions') {
         console.log('\n' + chalk.yellow('────────  Final Production Steps  ────────'));
         console.log(chalk.white('1. Make the deployment public (Dashboard > Settings > Deployment Protection > Disabled).'));
-        console.log(chalk.white('2. Link the Blob store to this project if not already linked:'));
-        console.log('   ' + chalk.cyan('vercel blob store link <store_id>') + '\n');
+        console.log(chalk.white('2. Set the DATABASE_URL environment variable in your Vercel dashboard:'));
+        console.log('   ' + chalk.cyan('Settings > Environment Variables > DATABASE_URL') + '\n');
       }
 
     } catch (error) {
@@ -159,7 +159,7 @@ function getPlatformConfig(platform: string) {
   return configs[platform as keyof typeof configs] || configs.vercel;
 }
 
-async function deployToPlatform(platform: any, blobStoreId?: string) {
+async function deployToPlatform(platform: any, postgresUrl?: string) {
   console.log(chalk.blue(`🌐 Deploying to ${platform.name}...`));
 
   // Check if platform CLI is installed
@@ -194,9 +194,9 @@ async function deployToPlatform(platform: any, blobStoreId?: string) {
     }
   }
 
-  // Special handling for Vercel - automatically set up KV storage
+  // Special handling for Vercel - set up PostgreSQL connection
   if (platform.name === 'Vercel Functions') {
-    await setupVercelStorage(blobStoreId);
+    await setupVercelPostgres(postgresUrl);
   }
 
   // Execute deployment
@@ -204,8 +204,8 @@ async function deployToPlatform(platform: any, blobStoreId?: string) {
   execSync(platform.command, { stdio: 'inherit' });
 }
 
-async function setupVercelStorage(blobStoreId?: string) {
-  console.log(chalk.blue('🔧 Checking Vercel Blob storage...'));
+async function setupVercelPostgres(postgresUrl?: string) {
+  console.log(chalk.blue('🔧 Setting up PostgreSQL for OAuth storage...'));
   
   try {
     // Check if we're in a Vercel project
@@ -217,64 +217,41 @@ async function setupVercelStorage(blobStoreId?: string) {
     return;
   }
 
-  // Determine desired store id
-  let storeId = blobStoreId || 'mcpresso-oauth';
-  if (!blobStoreId) {
-    try {
-      const pkg = JSON.parse(await fsPromises.readFile('package.json', 'utf8'));
-      if (pkg.name) {
-        const safe = pkg.name.toString().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
-        storeId = `mcpresso-${safe}-oauth`;
+  // Get PostgreSQL connection string
+  let databaseUrl = postgresUrl;
+  if (!databaseUrl) {
+    const { dbUrl } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'dbUrl',
+        message: 'Enter your PostgreSQL connection string:',
+        default: 'postgresql://username:password@localhost:5432/mcpresso_oauth',
+        validate: (input: string) => {
+          if (!input.startsWith('postgresql://') && !input.startsWith('postgres://')) {
+            return 'Please enter a valid PostgreSQL connection string starting with postgresql:// or postgres://';
+          }
+          return true;
+        }
       }
-    } catch (_) {}
+    ]);
+    databaseUrl = dbUrl;
   }
 
-  // helper to GET store; returns true if linked
-  const tryGet = (): boolean => {
-    try {
-      execSync(`vercel blob store get ${storeId}`, { stdio: 'pipe', encoding: 'utf8' });
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  if (tryGet()) {
-    console.log(chalk.green(`✅ Using Blob store: ${storeId}`));
-    return storeId;
+  // Set environment variable for deployment
+  console.log(chalk.gray('📝 Setting DATABASE_URL environment variable...'));
+  try {
+    execSync(`vercel env add DATABASE_URL production`, { 
+      stdio: 'pipe',
+      input: databaseUrl + '\n'
+    });
+    console.log(chalk.green('✅ DATABASE_URL environment variable set'));
+  } catch (error) {
+    console.log(chalk.yellow('⚠️  Could not set environment variable automatically'));
+    console.log(chalk.gray('   Please set DATABASE_URL in your Vercel dashboard:'));
+    console.log(chalk.cyan('   Settings > Environment Variables > DATABASE_URL'));
+    console.log(chalk.gray('   Value: ' + databaseUrl));
   }
 
-  const isId = storeId.startsWith('store_');
-
-  // If user supplied an id but it's not linked → link it
-  if (isId) {
-    console.log(chalk.yellow('⚠️  The Vercel CLI version in use does not support automatic linking. Make sure the store is linked to this project via the Vercel dashboard.')); 
-    return storeId;
-  } else {
-    // Name path: create then link
-    try {
-      console.log(chalk.gray('📦 Blob store not found – creating...'));
-      const out = execSync(`vercel blob store add ${storeId} --region iad1 --yes`, { encoding: 'utf8', stdio: 'pipe' });
-      const match = out.match(/\((store_[A-Za-z0-9]+)/);
-      const newId = match ? match[1] : storeId;
-      console.log(chalk.green(`✅ Created Blob store (${newId})`));
-      console.log(chalk.yellow('⚠️  Automatic linking is not supported by this CLI version. Please link the store to the project in the Vercel dashboard.'));
-      return newId;
-    } catch {}
-  }
-
-  // Fallback manual instructions
-  console.log('\n' + chalk.yellow('────────────────────────────────────────────'));
-  console.log(chalk.blueBright('ℹ️  Automatic creation/linking failed or requires additional permissions.'));
-  console.log(chalk.yellow('────────────────────────────────────────────\n'));
-
-  console.log(`${chalk.white('1. Create a new Blob store OR link an existing one:')}`);
-  console.log('   ' + chalk.cyan(`vercel blob store add ${storeId} --region iad1`) + chalk.gray('   # new')); 
-  console.log('   ' + chalk.cyan(`vercel blob store link ${isId ? storeId : '<store_id>'}`) + chalk.gray('           # existing') + '\n');
-
-  console.log(`${chalk.white('2. Deploy again using the store ID:')}`);
-  console.log('   ' + chalk.cyan('npx mcpresso deploy --blob-store-id <store_id>')+ '\n');
-  process.exit(1);
+  console.log(chalk.green('✅ PostgreSQL setup complete'));
+  console.log(chalk.gray('   The OAuth server will use PostgreSQL for persistent storage'));
 }
-
- 

@@ -2,23 +2,11 @@
 
 ## Overview
 
-The OAuth server needs persistent storage to maintain client registrations, users, and tokens across server restarts. In Vercel's serverless environment, we need to use Vercel's storage services.
+The OAuth server needs persistent storage to maintain client registrations, users, and tokens across server restarts. In Vercel's serverless environment, we use PostgreSQL for persistent storage.
 
 ## Quick Setup
 
-### Option 1 (Recommended): Vercel Blob
-
-1. **Create a Blob Store:**
-   ```bash
-   vercel blob store add mcpresso-oauth
-   ```
-
-2. **Deploy:**
-   ```bash
-   vercel --prod
-   ```
-
-### Option 2: Vercel Postgres
+### Option 1 (Recommended): Vercel Postgres
 
 1. **Create Postgres Database:**
    ```bash
@@ -35,9 +23,18 @@ The OAuth server needs persistent storage to maintain client registrations, user
    vercel --prod
    ```
 
+### Option 2: External PostgreSQL
+
+1. **Set up external PostgreSQL database** (e.g., Supabase, Railway, Neon)
+2. **Set DATABASE_URL environment variable** in Vercel dashboard
+3. **Deploy:**
+   ```bash
+   vercel --prod
+   ```
+
 ## Automatic Setup
 
-The CLI automatically sets up a Vercel Blob store during deployment:
+The CLI automatically sets up PostgreSQL during deployment:
 
 ```bash
 # Create and deploy your project
@@ -47,10 +44,10 @@ bun run mcpresso deploy
 ```
 
 This will:
-1. Check if the Blob store exists
-2. Create it automatically if it doesn't exist
+1. Prompt for PostgreSQL connection string
+2. Set up DATABASE_URL environment variable
 3. Deploy your application
-4. Use Vercel Blob storage in production automatically
+4. Use PostgreSQL storage in production automatically
 
 ## Storage Implementation
 
@@ -62,9 +59,9 @@ The generated code automatically detects the environment:
 - Fast and simple
 
 **Vercel Production:**
-- Uses `@vercel/blob` package
-- Automatically detects Vercel environment
-- Falls back to memory if Blob unavailable
+- Uses `PostgresStorage` with PostgreSQL
+- Automatically detects DATABASE_URL environment variable
+- Falls back to memory if PostgreSQL unavailable
 - Persistent storage across deployments
 
 ## Manual Storage Implementation
@@ -73,36 +70,59 @@ If you want to implement your own storage, update `src/auth/oauth.ts`:
 
 ```typescript
 // Replace MemoryStorage with your implementation
-class VercelBlobStorage extends MemoryStorage {
-  // Implement Blob storage methods
+class CustomPostgresStorage extends PostgresStorage {
+  // Implement custom storage methods
 }
 
-const storage = new VercelBlobStorage();
+const storage = new CustomPostgresStorage(process.env.DATABASE_URL);
 ```
 
 ## Development vs Production
 
 - **Development**: Uses `MemoryStorage` (in-memory, no persistence)
-- **Production**: Should use `VercelBlobStorage` or `VercelPostgresStorage`
+- **Production**: Should use `PostgresStorage` with PostgreSQL
 
 ## Environment Variables
 
 The following environment variables will be automatically set by Vercel:
 
-- `BLOB_READ_WRITE_TOKEN` - Vercel Blob RW token (only required for CLI usage)
-- `POSTGRES_URL` - Vercel Postgres connection string
+- `DATABASE_URL`: PostgreSQL connection string
+- `VERCEL`: Set to "1" in Vercel environment
+- `VERCEL_URL`: Your deployment URL
+
+## Database Schema
+
+The PostgreSQL storage automatically creates the following tables:
+
+- `oauth_clients`: OAuth client registrations
+- `oauth_users`: User accounts and profiles
+- `oauth_authorization_codes`: Authorization codes for PKCE flow
+- `oauth_access_tokens`: Access tokens
+- `oauth_refresh_tokens`: Refresh tokens
 
 ## Troubleshooting
 
-### "Invalid redirect URI" Error
+### Connection Issues
 
-This usually means:
-1. Dynamic client registration is working
-2. But the server isn't persisting the registered clients
-3. Solution: Set up Vercel Blob or Postgres storage
+If you see "PostgreSQL not available" errors:
 
-### Storage Not Working
+1. **Check DATABASE_URL**: Ensure it's set in Vercel dashboard
+2. **Verify connection**: Test the connection string locally
+3. **SSL settings**: Production requires SSL, development may not
 
-1. Check if Blob/Postgres is linked to your project
-2. Verify environment variables are set
-3. Check Vercel dashboard for storage status 
+### Performance
+
+For high-traffic applications:
+
+1. **Connection pooling**: The storage uses connection pooling
+2. **Indexes**: Automatic indexes are created for performance
+3. **Cleanup**: Expired tokens are automatically cleaned up
+
+### Migration from Blob Storage
+
+If migrating from the old blob storage:
+
+1. **Export data**: Export any existing OAuth data
+2. **Set up PostgreSQL**: Create new PostgreSQL database
+3. **Update environment**: Set DATABASE_URL
+4. **Redeploy**: Deploy with new storage 
