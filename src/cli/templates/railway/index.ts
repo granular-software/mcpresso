@@ -1,63 +1,63 @@
-import { Template } from '../types.js';
-import { ProjectConfig } from '../../utils/project-creator.js';
-import crypto from 'crypto';
+import { Template } from "../types.js";
+import { ProjectConfig } from "../../utils/project-creator.js";
+import crypto from "crypto";
 
 export const railwayTemplate: Template = {
-  id: 'railway',
-  name: 'Railway',
-  description: 'Full-stack deployment with PostgreSQL database',
-  category: 'cloud',
-  features: ['PostgreSQL Database', 'Automatic SSL', 'Global CDN', 'Git integration', 'User Management'],
-  complexity: 'medium',
+	id: "railway",
+	name: "Railway",
+	description: "Full-stack deployment with PostgreSQL database",
+	category: "cloud",
+	features: ["PostgreSQL Database", "Automatic SSL", "Global CDN", "Git integration", "User Management"],
+	complexity: "medium",
 
-  getDependencies: () => ({
-    'mcpresso': '^0.7.7',
-    'zod': '^3.23.8',
-    'hono': '^4.8.2',
-    'bcryptjs': '^2.4.3',
-    'mcpresso-oauth-server': '^1.1.0',
-    'pg': '^8.11.3',
-    'express': '^4.18.2',
-    'cors': '^2.8.5',
-    'helmet': '^8.0.0',
-    'compression': '^1.7.4'
-  }),
+	getDependencies: () => ({
+		mcpresso: "^0.7.7",
+		zod: "^3.23.8",
+		hono: "^4.8.2",
+		bcryptjs: "^2.4.3",
+		"mcpresso-oauth-server": "^1.1.0",
+		pg: "^8.11.3",
+		express: "^4.18.2",
+		cors: "^2.8.5",
+		helmet: "^8.0.0",
+		compression: "^1.7.4",
+	}),
 
-  getDevDependencies: () => ({
-    '@types/node': '^20.0.0',
-    '@types/express': '^4.17.21',
-    '@types/cors': '^2.8.17',
-    '@types/compression': '^1.7.5',
-    '@types/pg': '^8.10.9',
-    '@types/bcryptjs': '^2.4.2',
-    'typescript': '^5.0.0',
-    'tsx': '^4.0.0'
-  }),
+	getDevDependencies: () => ({
+		"@types/node": "^20.0.0",
+		"@types/express": "^4.17.21",
+		"@types/cors": "^2.8.17",
+		"@types/compression": "^1.7.5",
+		"@types/pg": "^8.10.9",
+		"@types/bcryptjs": "^2.4.2",
+		typescript: "^5.0.0",
+		tsx: "^4.0.0",
+	}),
 
-  getScripts: () => ({
-    'dev': 'tsx watch src/server.ts',
-    'build': 'tsc',
-    'start': 'node dist/server.js',
-    'typecheck': 'tsc --noEmit',
-    'clean': 'rm -rf dist',
-    'deploy': 'railway up',
-    'postinstall': 'npm run build'
-  }),
+	getScripts: () => ({
+		dev: "tsx watch src/server.ts",
+		build: "tsc",
+		start: "node dist/server.js",
+		typecheck: "tsc --noEmit",
+		clean: "rm -rf dist",
+		deploy: "railway up",
+		postinstall: "npm run build",
+	}),
 
-  generateFiles: async (config: ProjectConfig) => {
-    const files: Record<string, string> = {};
+	generateFiles: async (config: ProjectConfig) => {
+		const files: Record<string, string> = {};
 
-    // Generate a random salt for hashing
-    const salt = crypto.randomBytes(32).toString('hex');
+		// Generate a random salt for hashing
+		const salt = crypto.randomBytes(32).toString("hex");
 
-    // Server file
-    files['src/server.ts'] = generateServerFile(config);
-    
-    // Example resource
-    files['src/resources/example.ts'] = generateResourceExample(config);
-    
-    // Railway config
-    files['railway.json'] = `{
+		// Server file
+		files["src/server.ts"] = generateServerFile(config);
+
+		// Example resource
+		files["src/resources/example.ts"] = generateResourceExample(config);
+
+		// Railway config
+		files["railway.json"] = `{
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS"
@@ -71,12 +71,12 @@ export const railwayTemplate: Template = {
   }
 }`;
 
-    // Nixpacks configuration to ensure Node.js is used
-    files['nixpacks.toml'] = `[phases.setup]
+		// Nixpacks configuration to ensure Node.js is used
+		files["nixpacks.toml"] = `[phases.setup]
 nixPkgs = ["nodejs_20", "postgresql_15"]
 
 [phases.install]
-cmds = ["npm ci --only=production"]
+cmds = ["npm ci"]
 
 [phases.build]
 cmds = ["npm run build"]
@@ -84,32 +84,32 @@ cmds = ["npm run build"]
 [start]
 cmd = "npm start"`;
 
-    // Environment variables
-    files['.env'] = generateEnvFile(config, salt);
+		// Environment variables
+		files[".env"] = generateEnvFile(config, salt);
 
-    // PostgreSQL storage utility
-    files['src/storage/postgres-storage.ts'] = generatePostgresStorage();
+		// PostgreSQL storage utility
+		files["src/storage/postgres-storage.ts"] = generatePostgresStorage();
 
-    // Database initialization script
-    files['src/db/init.ts'] = generateDatabaseInit();
+		// Database initialization script
+		files["src/db/init.ts"] = generateDatabaseInit();
 
-    // OAuth config if enabled
-    if (config.oauth) {
-      // Demo users with hashed passwords
-      files['src/data/users.ts'] = generateUsersFile();
-      files['src/auth/oauth.ts'] = generateOAuthConfig(config);
-    }
+		// OAuth config if enabled
+		if (config.oauth) {
+			// Demo users with hashed passwords
+			files["src/data/users.ts"] = generateUsersFile();
+			files["src/auth/oauth.ts"] = generateOAuthConfig(config);
+		}
 
-    // Token config if enabled
-    if (config.token) {
-      files['src/auth/token.ts'] = generateTokenConfig(config);
-    }
+		// Token config if enabled
+		if (config.token) {
+			files["src/auth/token.ts"] = generateTokenConfig(config);
+		}
 
-    // Package.json
-    files['package.json'] = generatePackageJson(config);
+		// Package.json
+		files["package.json"] = generatePackageJson(config);
 
-    // TypeScript config
-    files['tsconfig.json'] = `{
+		// TypeScript config
+		files["tsconfig.json"] = `{
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -129,13 +129,13 @@ cmd = "npm start"`;
   "exclude": ["node_modules", "dist"]
 }`;
 
-    // Dockerfile for Railway
-    files['Dockerfile'] = `FROM node:20-alpine as base
+		// Dockerfile for Railway
+		files["Dockerfile"] = `FROM node:20-alpine as base
 WORKDIR /usr/src/app
 
 # Install dependencies into temp directory
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source code into container
 COPY . .
@@ -167,8 +167,8 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\
 
 CMD ["npm", "start"]`;
 
-    // .dockerignore to exclude unnecessary files
-    files['.dockerignore'] = `node_modules
+		// .dockerignore to exclude unnecessary files
+		files[".dockerignore"] = `node_modules
 npm-debug.log
 .git
 .gitignore
@@ -188,14 +188,14 @@ dist
 *.swo
 *~`;
 
-    // README with deployment instructions
-    files['README.md'] = `# ${config.name}
+		// README with deployment instructions
+		files["README.md"] = `# ${config.name}
 
-${config.description || 'An MCP server built with mcpresso'}
+${config.description || "An MCP server built with mcpresso"}
 
 ## Features
 
-${config.oauth ? '- OAuth 2.1 authentication' : ''}${config.token ? '- Bearer token authentication' : ''}
+${config.oauth ? "- OAuth 2.1 authentication" : ""}${config.token ? "- Bearer token authentication" : ""}
 - PostgreSQL database support
 - Health check endpoint
 - Railway deployment ready
@@ -262,29 +262,23 @@ The application includes a health check endpoint at \`/health\` for Railway's he
 Once deployed, visit your Railway URL to see the MCP server documentation and test endpoints.
 `;
 
-    return files;
-  }
+		return files;
+	},
 };
 
 function generateServerFile(config: ProjectConfig): string {
-  const authImports = [];
-  const authConfigs = [];
-  
-  if (config.oauth) {
-    authImports.push('import { oauthConfig } from "./auth/oauth.js";');
-    authConfigs.push('auth: oauthConfig,');
-  }
-  
-  if (config.token) {
-    authImports.push('import { tokenConfig } from "./auth/token.js";');
-    authConfigs.push('auth: tokenConfig,');
-  }
-  
-  const authImport = authImports.length > 0 ? `\n${authImports.join('\n')}` : '';
-  const authConfig = authConfigs.length > 0 ? `\n  ${authConfigs.join('\n  ')}` : '';
+	let authImport = "";
+	let authConfig = "";
 
-  return `import { z } from "zod";
-import { createResource, createMCPServer } from "mcpresso";${authImport}
+	if (config.oauth) {
+		authImport = '\nimport { oauthConfig } from "./auth/oauth.js";';
+		authConfig = "\n  auth: oauthConfig,";
+	} else if (config.token) {
+		authImport = '\nimport { tokenConfig } from "./auth/token.js";';
+		authConfig = "\n  auth: tokenConfig,";
+	}
+
+	return `import { createResource, createMCPServer } from "mcpresso";${authImport}
 
 // Import your resources
 import { exampleResource } from "./resources/example.js";
@@ -334,7 +328,7 @@ const expressApp = createMCPServer({
 });
 
 // Add health check endpoint for Railway
-expressApp.get('/health', (req, res) => {
+expressApp.get('/health', (req: any, res: any) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -359,7 +353,7 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
 }
 
 function generateResourceExample(config: ProjectConfig): string {
-  return `import { z } from "zod";
+	return `import { z } from "zod";
 import { createResource } from "mcpresso";
 
 // Example: A simple note resource
@@ -372,8 +366,10 @@ const NoteSchema = z.object({
   updatedAt: z.date(),
 });
 
+type Note = z.infer<typeof NoteSchema>;
+
 // In-memory storage (replace with your database)
-const notes = [];
+const notes: Note[] = [];
 
 // Create the notes resource
 export const exampleResource = createResource({
@@ -448,7 +444,7 @@ export const exampleResource = createResource({
 }
 
 function generateEnvFile(config: ProjectConfig, salt: string): string {
-  let envContent = `# Environment Variables for ${config.name}
+	let envContent = `# Environment Variables for ${config.name}
 # Copy this file to .env and update the values
 
 # Server Configuration
@@ -468,8 +464,8 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:417
 JWT_SECRET=your-secret-key-change-this-in-production
 `;
 
-  if (config.oauth) {
-    envContent += `
+	if (config.oauth) {
+		envContent += `
 # OAuth 2.1 Configuration
 # OAUTH_ISSUER will be automatically set to SERVER_URL if not provided
 JWT_SECRET=your-secret-key-change-this-in-production
@@ -483,10 +479,10 @@ JWT_SECRET=your-secret-key-change-this-in-production
 # DATABASE_URL=postgresql://username:password@host:5432/database
 # JWT_SECRET=your-secure-secret-key
 `;
-  }
+	}
 
-  if (config.token) {
-    envContent += `
+	if (config.token) {
+		envContent += `
 # Bearer Token Authentication
 # Generate a secure random token for production
 BEARER_TOKEN=sk-1234567890abcdef
@@ -494,9 +490,9 @@ BEARER_TOKEN=sk-1234567890abcdef
 # TODO: Update this value for production
 # BEARER_TOKEN=your-secure-random-token
 `;
-  }
+	}
 
-  envContent += `
+	envContent += `
 # Database Configuration
 # DATABASE_URL will be set automatically by Railway
 # For local development, you can set it manually:
@@ -507,11 +503,11 @@ BEARER_TOKEN=sk-1234567890abcdef
 # WEBHOOK_SECRET=your-webhook-secret
 `;
 
-  return envContent;
+	return envContent;
 }
 
 function generatePostgresStorage(): string {
-  return `import { Pool } from 'pg';
+	return `import { Pool } from 'pg';
 import type { 
   MCPOAuthStorage,
   OAuthClient,
@@ -1019,7 +1015,7 @@ export class PostgresStorage implements MCPOAuthStorage {
 }
 
 function generateDatabaseInit(): string {
-  return `import { PostgresStorage } from '../storage/postgres-storage.js';
+	return `import { PostgresStorage } from '../storage/postgres-storage.js';
 import { demoUsers } from '../data/users.js';
 import { createDemoClient } from '../auth/oauth.js';
 
@@ -1063,7 +1059,7 @@ export async function initializeDatabase() {
 }
 
 function generateOAuthConfig(config: ProjectConfig): string {
-  return `import { MCPOAuthServer } from "mcpresso-oauth-server";
+	return `import { MCPOAuthServer } from "mcpresso-oauth-server";
 import { MemoryStorage } from "mcpresso-oauth-server";
 import { PostgresStorage } from "../storage/postgres-storage.js";
 import * as bcrypt from "bcryptjs";
@@ -1208,7 +1204,7 @@ export const oauthConfig = {
 }
 
 function generateUsersFile(): string {
-  return `import { hashSync } from "bcryptjs";
+	return `import { hashSync } from "bcryptjs";
 import type { OAuthUser } from "mcpresso-oauth-server";
 
 export interface DemoUser extends OAuthUser {
@@ -1246,7 +1242,7 @@ export const demoUsers: DemoUser[] = [
 }
 
 function generateTokenConfig(config: ProjectConfig): string {
-  return `// Bearer token authentication configuration
+	return `// Bearer token authentication configuration
 export const tokenConfig = {
   bearerToken: {
     // The secret token that clients must provide
@@ -1284,21 +1280,25 @@ export const tokenConfig = {
 }
 
 function generatePackageJson(config: ProjectConfig): string {
-  const dependencies = railwayTemplate.getDependencies();
-  const devDependencies = railwayTemplate.getDevDependencies();
-  const scripts = railwayTemplate.getScripts();
+	const dependencies = railwayTemplate.getDependencies();
+	const devDependencies = railwayTemplate.getDevDependencies();
+	const scripts = railwayTemplate.getScripts();
 
-  return JSON.stringify({
-    name: config.name.toLowerCase().replace(/\s+/g, '-'),
-    version: "1.0.0",
-    description: config.description || `MCP server for ${config.name}`,
-    type: "module",
-    main: "dist/server.js",
-    scripts,
-    dependencies,
-    devDependencies,
-    engines: {
-      node: ">=18.0.0"
-    }
-  }, null, 2);
-} 
+	return JSON.stringify(
+		{
+			name: config.name.toLowerCase().replace(/\s+/g, "-"),
+			version: "1.0.0",
+			description: config.description || `MCP server for ${config.name}`,
+			type: "module",
+			main: "dist/server.js",
+			scripts,
+			dependencies,
+			devDependencies,
+			engines: {
+				node: ">=18.0.0",
+			},
+		},
+		null,
+		2,
+	);
+}
