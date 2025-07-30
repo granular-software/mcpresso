@@ -129,65 +129,6 @@ cmd = "npm start"`;
   "exclude": ["node_modules", "dist"]
 }`;
 
-		// Dockerfile for Railway
-		files["Dockerfile"] = `FROM node:20-alpine as base
-WORKDIR /usr/src/app
-
-# Install dependencies into temp directory
-COPY package*.json ./
-RUN npm ci
-
-# Copy source code into container
-COPY . .
-
-# Build the application
-RUN npm run build
-
-# Start fresh from a smaller base image
-FROM node:20-alpine
-WORKDIR /usr/src/app
-
-# Copy built assets from previous stage
-COPY --from=base /usr/src/app/dist ./dist
-COPY --from=base /usr/src/app/node_modules ./node_modules
-COPY --from=base /usr/src/app/package.json ./
-
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nodejs
-USER nodejs
-
-EXPOSE 3000
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\
-  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
-
-CMD ["npm", "start"]`;
-
-		// .dockerignore to exclude unnecessary files
-		files[".dockerignore"] = `node_modules
-npm-debug.log
-.git
-.gitignore
-README.md
-.env
-.nyc_output
-coverage
-.nyc_output
-.coverage
-.cache
-dist
-*.log
-.DS_Store
-.vscode
-.idea
-*.swp
-*.swo
-*~`;
-
 		// README with deployment instructions
 		files["README.md"] = `# ${config.name}
 
@@ -261,6 +202,10 @@ The application includes a health check endpoint at \`/health\` for Railway's he
 
 Once deployed, visit your Railway URL to see the MCP server documentation and test endpoints.
 `;
+
+		// Rely on Nixpacks – drop Dockerfile and .dockerignore
+		delete files['Dockerfile'];
+		delete files['.dockerignore'];
 
 		return files;
 	},
