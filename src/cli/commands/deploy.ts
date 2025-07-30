@@ -229,38 +229,58 @@ async function setupVercelStorage(blobStoreId?: string) {
     } catch (_) {}
   }
 
-  // First try a direct get by id/name
-  try {
-    execSync(`vercel blob store get ${storeId}`, { stdio: 'pipe', encoding: 'utf8' });
+  // helper to GET store; returns true if linked
+  const tryGet = (): boolean => {
+    try {
+      execSync(`vercel blob store get ${storeId}`, { stdio: 'pipe', encoding: 'utf8' });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  if (tryGet()) {
     console.log(chalk.green(`✅ Using Blob store: ${storeId}`));
     return storeId;
-  } catch (_) {
-    // Attempt automatic creation & linking
+  }
+
+  const isId = storeId.startsWith('store_');
+
+  // If user supplied an id but it's not linked → link it
+  if (isId) {
+    try {
+      console.log(chalk.gray('🔗 Linking Blob store to this project...'));
+      execSync(`vercel blob store link ${storeId} --yes`, { stdio: 'inherit' });
+      console.log(chalk.green('✅ Linked successfully'));
+      return storeId;
+    } catch {}
+  } else {
+    // Name path: create then link
     try {
       console.log(chalk.gray('📦 Blob store not found – creating...'));
-      const output = execSync(`vercel blob store add ${storeId} --region iad1 --yes`, {
-        stdio: 'pipe',
-        encoding: 'utf8',
-      });
-      const m = output.match(/\((store_[A-Za-z0-9]+)/);
-      const createdId = m ? m[1] : storeId;
-      console.log(chalk.green(`✅ Blob store created and linked: ${createdId}`));
-      return createdId;
-    } catch {
-      // Fallback to manual instructions
-      console.log('\n' + chalk.yellow('────────────────────────────────────────────'));
-      console.log(chalk.blueBright('ℹ️  Automatic creation failed or requires additional permissions.'));
-      console.log(chalk.yellow('────────────────────────────────────────────\n'));
-
-      console.log(`${chalk.white('1. Create a new Blob store OR link an existing one:')}`);
-      console.log('   ' + chalk.cyan(`vercel blob store add ${storeId} --region iad1`) + chalk.gray('   # new')); 
-      console.log('   ' + chalk.cyan('vercel blob store link <store_id>') + chalk.gray('           # existing') + '\n');
-
-      console.log(`${chalk.white('2. Deploy again using the store ID:')}`);
-      console.log('   ' + chalk.cyan(`npx mcpresso deploy --blob-store-id <store_id>`)+ '\n');
-      process.exit(1);
-    }
+      const out = execSync(`vercel blob store add ${storeId} --region iad1 --yes`, { encoding: 'utf8', stdio: 'pipe' });
+      const match = out.match(/\((store_[A-Za-z0-9]+)/);
+      const newId = match ? match[1] : storeId;
+      console.log(chalk.green(`✅ Created Blob store (${newId})`));
+      console.log(chalk.gray('🔗 Linking to project...'));
+      execSync(`vercel blob store link ${newId} --yes`, { stdio: 'inherit' });
+      console.log(chalk.green('✅ Linked successfully'));
+      return newId;
+    } catch {}
   }
+
+  // Fallback manual instructions
+  console.log('\n' + chalk.yellow('────────────────────────────────────────────'));
+  console.log(chalk.blueBright('ℹ️  Automatic creation/linking failed or requires additional permissions.'));
+  console.log(chalk.yellow('────────────────────────────────────────────\n'));
+
+  console.log(`${chalk.white('1. Create a new Blob store OR link an existing one:')}`);
+  console.log('   ' + chalk.cyan(`vercel blob store add ${storeId} --region iad1`) + chalk.gray('   # new')); 
+  console.log('   ' + chalk.cyan(`vercel blob store link ${isId ? storeId : '<store_id>'}`) + chalk.gray('           # existing') + '\n');
+
+  console.log(`${chalk.white('2. Deploy again using the store ID:')}`);
+  console.log('   ' + chalk.cyan('npx mcpresso deploy --blob-store-id <store_id>')+ '\n');
+  process.exit(1);
 }
 
  
