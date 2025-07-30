@@ -85,11 +85,8 @@ async function detectPlatform(specifiedPlatform?: string) {
           name: 'platform',
           message: 'Choose deployment platform:',
           choices: [
-            { name: 'Vercel Functions', value: 'vercel' },
-            { name: 'Cloudflare Workers', value: 'cloudflare' },
-            { name: 'AWS Lambda', value: 'aws-lambda' },
-            { name: 'Docker', value: 'docker' },
-            { name: 'Express Server', value: 'express' }
+            { name: 'Railway (Recommended)', value: 'railway' },
+            { name: 'Vercel Functions', value: 'vercel' }
           ]
         }
       ]);
@@ -104,11 +101,8 @@ async function detectPlatform(specifiedPlatform?: string) {
         name: 'platform',
         message: 'Choose deployment platform:',
         choices: [
-          { name: 'Vercel Functions', value: 'vercel' },
-          { name: 'Cloudflare Workers', value: 'cloudflare' },
-          { name: 'AWS Lambda', value: 'aws-lambda' },
-          { name: 'Docker', value: 'docker' },
-          { name: 'Express Server', value: 'express' }
+          { name: 'Railway (Recommended)', value: 'railway' },
+          { name: 'Vercel Functions', value: 'vercel' }
         ]
       }
     ]);
@@ -126,37 +120,16 @@ function getPlatformConfig(platform: string) {
       installCommand: 'npm install -g vercel',
       docs: 'https://vercel.com/docs/functions'
     },
-    'cloudflare': {
-      name: 'Cloudflare Workers',
-      command: 'wrangler deploy',
-      checkCommand: 'wrangler --version',
-      installCommand: 'npm install -g wrangler',
-      docs: 'https://developers.cloudflare.com/workers/'
-    },
-    'aws-lambda': {
-      name: 'AWS Lambda',
-      command: 'serverless deploy',
-      checkCommand: 'serverless --version',
-      installCommand: 'npm install -g serverless',
-      docs: 'https://docs.aws.amazon.com/lambda/'
-    },
-    'docker': {
-      name: 'Docker',
-      command: 'docker-compose up -d',
-      checkCommand: 'docker --version',
-      installCommand: 'https://docs.docker.com/get-docker/',
-      docs: 'https://docs.docker.com/'
-    },
-    'express': {
-      name: 'Express Server',
-      command: 'npm start',
-      checkCommand: 'node --version',
-      installCommand: null,
-      docs: 'https://expressjs.com/'
+    'railway': {
+      name: 'Railway',
+      command: 'railway up',
+      checkCommand: 'railway --version',
+      installCommand: 'npm install -g @railway/cli',
+      docs: 'https://docs.railway.app/'
     }
   };
 
-  return configs[platform as keyof typeof configs] || configs.vercel;
+  return configs[platform as keyof typeof configs] || configs.railway;
 }
 
 async function deployToPlatform(platform: any, postgresUrl?: string) {
@@ -194,9 +167,11 @@ async function deployToPlatform(platform: any, postgresUrl?: string) {
     }
   }
 
-  // Special handling for Vercel - set up PostgreSQL connection
+  // Special handling for different platforms
   if (platform.name === 'Vercel Functions') {
     await setupVercelPostgres(postgresUrl);
+  } else if (platform.name === 'Railway') {
+    await setupRailwayDeployment();
   }
 
   // Execute deployment
@@ -254,4 +229,66 @@ async function setupVercelPostgres(postgresUrl?: string) {
 
   console.log(chalk.green('✅ PostgreSQL setup complete'));
   console.log(chalk.gray('   The OAuth server will use PostgreSQL for persistent storage'));
+}
+
+async function setupRailwayDeployment() {
+  console.log(chalk.blue('🚂 Setting up Railway deployment...'));
+  
+  try {
+    // Check if we're in a Railway project
+    const railwayJson = await fsPromises.readFile('railway.json', 'utf8');
+    console.log(chalk.green('✅ Found Railway project configuration'));
+  } catch (error) {
+    console.log(chalk.yellow('⚠️  Not in a Railway project directory'));
+    console.log(chalk.gray('   Please run this command from your project directory'));
+    return;
+  }
+
+  // Check if Railway CLI is logged in
+  try {
+    execSync('railway whoami', { stdio: 'pipe' });
+    console.log(chalk.green('✅ Railway CLI is authenticated'));
+  } catch (error) {
+    console.log(chalk.yellow('⚠️  Railway CLI not authenticated'));
+    console.log(chalk.gray('   Please run: railway login'));
+    console.log(chalk.gray('   Then try deployment again'));
+    process.exit(1);
+  }
+
+  // Check if project is linked
+  try {
+    execSync('railway status', { stdio: 'pipe' });
+    console.log(chalk.green('✅ Railway project is linked'));
+  } catch (error) {
+    console.log(chalk.yellow('⚠️  Railway project not linked'));
+    console.log(chalk.gray('   Please run: railway link'));
+    console.log(chalk.gray('   Or create a new project: railway init'));
+    process.exit(1);
+  }
+
+  // Set up PostgreSQL database
+  console.log(chalk.blue('🗄️  Setting up PostgreSQL database...'));
+  try {
+    // Add PostgreSQL service
+    execSync('railway add postgresql', { stdio: 'inherit' });
+    console.log(chalk.green('✅ PostgreSQL database added'));
+    
+    // Get the database URL
+    const dbUrl = execSync('railway variables get DATABASE_URL', { 
+      stdio: 'pipe', 
+      encoding: 'utf8' 
+    }).trim();
+    
+    console.log(chalk.green('✅ Database URL configured'));
+    console.log(chalk.gray('   The OAuth server will use Railway PostgreSQL for persistent storage'));
+    
+  } catch (error) {
+    console.log(chalk.yellow('⚠️  Could not set up PostgreSQL automatically'));
+    console.log(chalk.gray('   Please add PostgreSQL manually: railway add postgresql'));
+    console.log(chalk.gray('   Then redeploy: railway up'));
+  }
+
+  console.log(chalk.green('✅ Railway setup complete'));
+  console.log(chalk.gray('   Your app will be deployed with PostgreSQL database'));
+  console.log(chalk.gray('   Demo users will be created automatically'));
 }

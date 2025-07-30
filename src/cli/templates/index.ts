@@ -1,17 +1,11 @@
 import { Template } from './types.js';
 import { vercelTemplate } from './vercel/index.js';
-import { cloudflareTemplate } from './cloudflare/index.js';
-import { awsLambdaTemplate } from './aws-lambda/index.js';
-import { dockerTemplate } from './docker/index.js';
-import { expressTemplate } from './express/index.js';
+import { railwayTemplate } from './railway/index.js';
 
 // Import all templates
 const templates: Template[] = [
+  railwayTemplate,
   vercelTemplate,
-  cloudflareTemplate,
-  awsLambdaTemplate,
-  dockerTemplate,
-  expressTemplate,
 ];
 
 export function getTemplates(): Template[] {

@@ -26,7 +26,7 @@ The fastest way to create your first MCPresso server is using our CLI:
 npx mcpresso init
 
 # Follow the interactive prompts to configure your server
-# Choose your deployment platform (Vercel, Cloudflare, AWS Lambda, Docker)
+# Choose your deployment platform (Railway, Vercel)
 # Choose your authentication type (None, OAuth 2.1, or Bearer Token)
 
 # Start development
@@ -68,7 +68,7 @@ Create a new MCP server in seconds:
 npx mcpresso init
 
 # Follow the prompts to configure your server
-# Choose your deployment platform (Vercel, Cloudflare, AWS Lambda, Docker)
+# Choose your deployment platform (Railway, Vercel)
 # Choose your authentication type (None, OAuth 2.1, or Bearer Token)
 
 # Start development
