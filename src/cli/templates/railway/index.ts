@@ -40,7 +40,8 @@ export const railwayTemplate: Template = {
     'start': 'node dist/server.js',
     'typecheck': 'tsc --noEmit',
     'clean': 'rm -rf dist',
-    'deploy': 'railway up'
+    'deploy': 'railway up',
+    'postinstall': 'npm run build'
   }),
 
   generateFiles: async (config: ProjectConfig) => {
@@ -69,6 +70,19 @@ export const railwayTemplate: Template = {
     "restartPolicyMaxRetries": 10
   }
 }`;
+
+    // Nixpacks configuration to ensure Node.js is used
+    files['nixpacks.toml'] = `[phases.setup]
+nixPkgs = ["nodejs_20", "postgresql_15"]
+
+[phases.install]
+cmds = ["npm ci --only=production"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm start"`;
 
     // Environment variables
     files['.env'] = generateEnvFile(config, salt);
@@ -116,7 +130,7 @@ export const railwayTemplate: Template = {
 }`;
 
     // Dockerfile for Railway
-    files['Dockerfile'] = `FROM node:18-alpine as base
+    files['Dockerfile'] = `FROM node:20-alpine as base
 WORKDIR /usr/src/app
 
 # Install dependencies into temp directory
@@ -130,7 +144,7 @@ COPY . .
 RUN npm run build
 
 # Start fresh from a smaller base image
-FROM node:18-alpine
+FROM node:20-alpine
 WORKDIR /usr/src/app
 
 # Copy built assets from previous stage
@@ -147,7 +161,106 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\
+  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
 CMD ["npm", "start"]`;
+
+    // .dockerignore to exclude unnecessary files
+    files['.dockerignore'] = `node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env
+.nyc_output
+coverage
+.nyc_output
+.coverage
+.cache
+dist
+*.log
+.DS_Store
+.vscode
+.idea
+*.swp
+*.swo
+*~`;
+
+    // README with deployment instructions
+    files['README.md'] = `# ${config.name}
+
+${config.description || 'An MCP server built with mcpresso'}
+
+## Features
+
+${config.oauth ? '- OAuth 2.1 authentication' : ''}${config.token ? '- Bearer token authentication' : ''}
+- PostgreSQL database support
+- Health check endpoint
+- Railway deployment ready
+
+## Local Development
+
+\`\`\`bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+\`\`\`
+
+## Railway Deployment
+
+1. **Create a new Railway project**
+   \`\`\`bash
+   railway login
+   railway init
+   \`\`\`
+
+2. **Add PostgreSQL database**
+   - Go to your Railway project dashboard
+   - Click "New Service" → "Database" → "PostgreSQL"
+   - Railway will automatically provide \`DATABASE_URL\` environment variable
+
+3. **Deploy your application**
+   \`\`\`bash
+   railway up
+   \`\`\`
+
+4. **Set environment variables** (if needed)
+   - Go to your Railway project dashboard
+   - Navigate to "Variables" tab
+   - Add any additional environment variables
+
+## Environment Variables
+
+- \`DATABASE_URL\`: PostgreSQL connection string (automatically set by Railway)
+- \`SERVER_URL\`: Your application's public URL
+- \`JWT_SECRET\`: Secret key for JWT tokens (OAuth)
+- \`BEARER_TOKEN\`: Secret token for bearer authentication
+
+## Demo Users (OAuth)
+
+If OAuth is enabled, the following demo users are created:
+
+- **alice@example.com** / **alice123** (read, write permissions)
+- **bob@example.com** / **bob123** (read permissions)
+
+## Health Check
+
+The application includes a health check endpoint at \`/health\` for Railway's health monitoring.
+
+## API Documentation
+
+Once deployed, visit your Railway URL to see the MCP server documentation and test endpoints.
+`;
 
     return files;
   }
@@ -179,8 +292,14 @@ import { exampleResource } from "./resources/example.js";
 // Initialize database and create demo users
 import { initializeDatabase } from './db/init.js';
 
-// Initialize database
-await initializeDatabase();
+// Initialize database (don't block startup if it fails)
+try {
+  await initializeDatabase();
+} catch (error) {
+  console.error('⚠️  Database initialization failed:', error);
+  console.log('   • Server will continue without database features');
+  console.log('   • In Railway, ensure you have a PostgreSQL service attached');
+}
 
 // Resolve the canonical base URL of this server for both dev and production.
 // 1. Use explicit SERVER_URL if provided.
@@ -212,6 +331,16 @@ const expressApp = createMCPServer({
       streaming: true,
     },
   },
+});
+
+// Add health check endpoint for Railway
+expressApp.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Export for Railway deployment
@@ -920,7 +1049,10 @@ export async function initializeDatabase() {
       
     } catch (error) {
       console.error('❌ Failed to initialize database:', error);
-      throw error;
+      // Don't throw error in production, just log it
+      if (process.env.NODE_ENV === 'development') {
+        throw error;
+      }
     }
   } else {
     console.log('⚠️  No DATABASE_URL found, skipping database initialization');

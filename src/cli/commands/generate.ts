@@ -41,7 +41,14 @@ export const generate = new Command('generate')
     }
   });
 
-async function getGenerateConfig(options: any) {
+interface GenerateConfig {
+  source: string;
+  output: string;
+  name: string;
+  oauth: boolean;
+}
+
+async function getGenerateConfig(options: any): Promise<GenerateConfig> {
   if (options.source && options.output && options.name) {
     return {
       source: options.source,
@@ -93,10 +100,10 @@ async function getGenerateConfig(options: any) {
     }
   ];
 
-  return await inquirer.prompt(questions);
+  return await inquirer.prompt(questions) as GenerateConfig;
 }
 
-async function runGenerator(config: any) {
+async function runGenerator(config: GenerateConfig) {
   const { execSync } = await import('child_process');
   
   const command = [
