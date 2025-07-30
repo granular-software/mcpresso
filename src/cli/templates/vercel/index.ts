@@ -60,7 +60,7 @@ export const vercelTemplate: Template = {
   "functions": {
     "api/index.js": {
       "memory": 512,
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
   "routes": [
