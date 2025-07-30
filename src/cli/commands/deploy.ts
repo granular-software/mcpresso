@@ -2,8 +2,10 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { execSync } from 'child_process';
-import fs from 'fs/promises';
+import fsPromises from 'fs/promises';
+import { mkdtempSync } from 'fs';
 import path from 'path';
+import os from 'os';
 
 
 export const deploy = new Command('deploy')
@@ -56,7 +58,7 @@ async function detectPlatform(specifiedPlatform?: string) {
   }
 
   try {
-    const packageJson = JSON.parse(await fs.readFile('package.json', 'utf8'));
+    const packageJson = JSON.parse(await fsPromises.readFile('package.json', 'utf8'));
     const scripts = packageJson.scripts || {};
 
     if (scripts.deploy?.includes('vercel')) {
@@ -199,7 +201,7 @@ async function setupVercelStorage() {
   
   try {
     // Check if we're in a Vercel project
-    const vercelJson = await fs.readFile('vercel.json', 'utf8');
+    const vercelJson = await fsPromises.readFile('vercel.json', 'utf8');
     console.log(chalk.green('✅ Found Vercel project configuration'));
   } catch (error) {
     console.log(chalk.yellow('⚠️  Not in a Vercel project directory'));
@@ -221,18 +223,19 @@ async function setupVercelStorage() {
   }
 
   try {
-    // Create KV database using CLI
-    // Run from parent directory to avoid project context conflicts
+    // Create KV database using CLI in a temporary directory to avoid "deploy path" conflicts
     console.log(chalk.gray('📦 Creating Vercel KV database...'));
-    const currentDir = process.cwd();
-    const parentDir = path.dirname(currentDir);
-    
-    // Change to parent directory temporarily
-    process.chdir(parentDir);
-    execSync('vercel kv create mcpresso-oauth', { stdio: 'inherit' });
-    // Change back to project directory
-    process.chdir(currentDir);
-    
+
+    const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'vercel-kv-'));
+    const cliCmd = ['vercel', 'kv', 'create', 'mcpresso-oauth', '--yes'];
+
+    // If the user has a Vercel token in env, pass it to avoid interactive auth
+    if (process.env.VERCEL_TOKEN) {
+      cliCmd.push('--token', process.env.VERCEL_TOKEN);
+    }
+
+    execSync(cliCmd.join(' '), { stdio: 'inherit', cwd: tmpDir });
+
     console.log(chalk.green('✅ Vercel KV created successfully'));
     console.log(chalk.gray('💡 KV will be automatically linked to your deployment'));
     
