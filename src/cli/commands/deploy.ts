@@ -219,11 +219,25 @@ async function setupVercelStorage() {
     }
   } catch (_) {}
 
+  // First try a direct get by name (works if CLI supports it)
   try {
     execSync(`vercel blob store get ${storeId}`, { stdio: 'pipe', encoding: 'utf8' });
-    console.log(chalk.green(`✅ Found Blob store: ${storeId}`));
+    console.log(chalk.green(`✅ Using Blob store: ${storeId}`));
     return storeId;
-  } catch (err) {
+  } catch (_) {
+    // Fallback: list all stores and check by name
+    try {
+      const list = execSync('vercel blob store list --limit 100', {
+        stdio: 'pipe',
+        encoding: 'utf8',
+      });
+      if (list.includes(storeId)) {
+        console.log(chalk.green(`✅ Using Blob store: ${storeId}`));
+        return storeId;
+      }
+    } catch {}
+
+    // Not found – instruct user
     console.log('\n' + chalk.yellow('────────────────────────────────────────────'));
     console.log(chalk.blueBright('ℹ️  This project needs a Vercel Blob store to persist OAuth data (users, clients, tokens).'));
     console.log(chalk.yellow('────────────────────────────────────────────\n'));
