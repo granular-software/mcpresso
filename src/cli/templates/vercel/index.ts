@@ -14,7 +14,8 @@ export const vercelTemplate: Template = {
     'zod': '^3.23.8',
     'hono': '^4.8.2',
     'bcryptjs': '^2.4.3',
-    'mcpresso-oauth-server': '^1.1.0'
+    'mcpresso-oauth-server': '^1.1.0',
+    '@vercel/kv': '^1.0.0'
   }),
 
   getDevDependencies: () => ({
@@ -339,10 +340,36 @@ let storage: any;
 if (process.env.VERCEL) {
   // Use Vercel KV in production
   try {
-    const { VercelKVStorage } = await import('mcpresso-oauth-server');
-    storage = new VercelKVStorage();
+    const { kv } = await import('@vercel/kv');
+    storage = {
+      // Implement storage interface using Vercel KV
+      async createClient(client: any) {
+        await kv.set(\`client:\${client.id}\`, client);
+      },
+      async getClient(clientId: string) {
+        return await kv.get(\`client:\${clientId}\`);
+      },
+      async createUser(user: any) {
+        await kv.set(\`user:\${user.id}\`, user);
+      },
+      async getUser(userId: string) {
+        return await kv.get(\`user:\${userId}\`);
+      },
+      async createCode(code: any) {
+        await kv.set(\`code:\${code.code}\`, code, { ex: 600 }); // 10 min expiry
+      },
+      async getCode(code: string) {
+        return await kv.get(\`code:\${code}\`);
+      },
+      async createToken(token: any) {
+        await kv.set(\`token:\${token.access_token}\`, token, { ex: 3600 }); // 1 hour expiry
+      },
+      async getToken(accessToken: string) {
+        return await kv.get(\`token:\${accessToken}\`);
+      }
+    };
   } catch (error) {
-    console.warn('VercelKVStorage not available, falling back to MemoryStorage');
+    console.warn('Vercel KV not available, falling back to MemoryStorage');
     storage = new MemoryStorage();
   }
 } else {
