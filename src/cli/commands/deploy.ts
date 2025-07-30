@@ -248,12 +248,8 @@ async function setupVercelStorage(blobStoreId?: string) {
 
   // If user supplied an id but it's not linked → link it
   if (isId) {
-    try {
-      console.log(chalk.gray('🔗 Linking Blob store to this project...'));
-      execSync(`vercel blob store link ${storeId} --yes`, { stdio: 'inherit' });
-      console.log(chalk.green('✅ Linked successfully'));
-      return storeId;
-    } catch {}
+    console.log(chalk.yellow('⚠️  The Vercel CLI version in use does not support automatic linking. Make sure the store is linked to this project via the Vercel dashboard.')); 
+    return storeId;
   } else {
     // Name path: create then link
     try {
@@ -262,9 +258,7 @@ async function setupVercelStorage(blobStoreId?: string) {
       const match = out.match(/\((store_[A-Za-z0-9]+)/);
       const newId = match ? match[1] : storeId;
       console.log(chalk.green(`✅ Created Blob store (${newId})`));
-      console.log(chalk.gray('🔗 Linking to project...'));
-      execSync(`vercel blob store link ${newId} --yes`, { stdio: 'inherit' });
-      console.log(chalk.green('✅ Linked successfully'));
+      console.log(chalk.yellow('⚠️  Automatic linking is not supported by this CLI version. Please link the store to the project in the Vercel dashboard.'));
       return newId;
     } catch {}
   }
