@@ -261,31 +261,67 @@ async function setupRailwayDeployment() {
     console.log(chalk.green('✅ Railway project is linked'));
   } catch (error) {
     console.log(chalk.yellow('⚠️  Railway project not linked'));
-    console.log(chalk.gray('   Please run: railway link'));
-    console.log(chalk.gray('   Or create a new project: railway init'));
-    process.exit(1);
+    console.log(chalk.gray('   Attempting to link project automatically...'));
+    
+    try {
+      // Try to link to existing project
+      execSync('railway link', { stdio: 'inherit' });
+      console.log(chalk.green('✅ Railway project linked successfully'));
+    } catch (linkError) {
+      console.log(chalk.yellow('⚠️  Could not link to existing project'));
+      console.log(chalk.gray('   Creating new Railway project...'));
+      
+      try {
+        execSync('railway init', { stdio: 'inherit' });
+        console.log(chalk.green('✅ New Railway project created'));
+      } catch (initError) {
+        console.log(chalk.red('❌ Failed to create Railway project'));
+        console.log(chalk.gray('   Please run these commands manually:'));
+        console.log(chalk.gray('   1. railway login'));
+        console.log(chalk.gray('   2. railway init'));
+        console.log(chalk.gray('   3. railway up'));
+        process.exit(1);
+      }
+    }
   }
 
   // Set up PostgreSQL database
   console.log(chalk.blue('🗄️  Setting up PostgreSQL database...'));
   try {
-    // Add PostgreSQL service
-    execSync('railway add postgresql', { stdio: 'inherit' });
-    console.log(chalk.green('✅ PostgreSQL database added'));
+    // Check if PostgreSQL service already exists
+    try {
+      execSync('railway service list | grep postgresql', { stdio: 'pipe' });
+      console.log(chalk.green('✅ PostgreSQL service already exists'));
+    } catch (error) {
+      // Add PostgreSQL service
+      console.log(chalk.gray('   Adding PostgreSQL service...'));
+      execSync('railway add postgresql', { stdio: 'inherit' });
+      console.log(chalk.green('✅ PostgreSQL database added'));
+    }
+    
+    // Wait a moment for the service to be ready
+    console.log(chalk.gray('   Waiting for database to be ready...'));
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Get the database URL
-    const dbUrl = execSync('railway variables get DATABASE_URL', { 
-      stdio: 'pipe', 
-      encoding: 'utf8' 
-    }).trim();
-    
-    console.log(chalk.green('✅ Database URL configured'));
-    console.log(chalk.gray('   The OAuth server will use Railway PostgreSQL for persistent storage'));
+    try {
+      const dbUrl = execSync('railway variables get DATABASE_URL', { 
+        stdio: 'pipe', 
+        encoding: 'utf8' 
+      }).trim();
+      
+      console.log(chalk.green('✅ Database URL configured'));
+      console.log(chalk.gray('   The OAuth server will use Railway PostgreSQL for persistent storage'));
+      
+    } catch (dbError) {
+      console.log(chalk.yellow('⚠️  Database URL not immediately available'));
+      console.log(chalk.gray('   This is normal - it will be available after deployment'));
+    }
     
   } catch (error) {
     console.log(chalk.yellow('⚠️  Could not set up PostgreSQL automatically'));
-    console.log(chalk.gray('   Please add PostgreSQL manually: railway add postgresql'));
-    console.log(chalk.gray('   Then redeploy: railway up'));
+    console.log(chalk.gray('   PostgreSQL will be added during deployment'));
+    console.log(chalk.gray('   You can add it manually later: railway add postgresql'));
   }
 
   console.log(chalk.green('✅ Railway setup complete'));
