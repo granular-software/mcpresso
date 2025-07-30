@@ -12,6 +12,7 @@ export const deploy = new Command('deploy')
   .description('Deploy your mcpresso server to production')
   .option('-p, --platform <platform>', 'Deployment platform')
   .option('-y, --yes', 'Skip confirmation prompts')
+  .option('--blob-store-id <id>', 'Existing Vercel Blob store ID to use')
   .action(async (options) => {
     try {
       console.log(chalk.blue.bold('🚀 Deploying mcpresso server...\n'));
@@ -41,7 +42,7 @@ export const deploy = new Command('deploy')
       execSync('npm run build', { stdio: 'inherit' });
 
       // Deploy based on platform
-      await deployToPlatform(platform);
+      await deployToPlatform(platform, options.blobStoreId);
 
       console.log(chalk.green.bold('\n✅ Deployment successful!'));
       console.log(chalk.gray('Your MCP server is now live! 🎉'));
@@ -151,7 +152,7 @@ function getPlatformConfig(platform: string) {
   return configs[platform as keyof typeof configs] || configs.vercel;
 }
 
-async function deployToPlatform(platform: any) {
+async function deployToPlatform(platform: any, blobStoreId?: string) {
   console.log(chalk.blue(`🌐 Deploying to ${platform.name}...`));
 
   // Check if platform CLI is installed
@@ -188,7 +189,7 @@ async function deployToPlatform(platform: any) {
 
   // Special handling for Vercel - automatically set up KV storage
   if (platform.name === 'Vercel Functions') {
-    await setupVercelStorage();
+    await setupVercelStorage(blobStoreId);
   }
 
   // Execute deployment
@@ -196,7 +197,7 @@ async function deployToPlatform(platform: any) {
   execSync(platform.command, { stdio: 'inherit' });
 }
 
-async function setupVercelStorage() {
+async function setupVercelStorage(blobStoreId?: string) {
   console.log(chalk.blue('🔧 Checking Vercel Blob storage...'));
   
   try {
@@ -209,44 +210,48 @@ async function setupVercelStorage() {
     return;
   }
 
-  // Build recommended store id from package name or folder
-  let storeId = 'mcpresso-oauth';
-  try {
-    const pkg = JSON.parse(await fsPromises.readFile('package.json', 'utf8'));
-    if (pkg.name) {
-      const safe = pkg.name.toString().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
-      storeId = `mcpresso-${safe}-oauth`;
-    }
-  } catch (_) {}
+  // Determine desired store id
+  let storeId = blobStoreId || 'mcpresso-oauth';
+  if (!blobStoreId) {
+    try {
+      const pkg = JSON.parse(await fsPromises.readFile('package.json', 'utf8'));
+      if (pkg.name) {
+        const safe = pkg.name.toString().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+        storeId = `mcpresso-${safe}-oauth`;
+      }
+    } catch (_) {}
+  }
 
-  // First try a direct get by name (works if CLI supports it)
+  // First try a direct get by id/name
   try {
     execSync(`vercel blob store get ${storeId}`, { stdio: 'pipe', encoding: 'utf8' });
     console.log(chalk.green(`✅ Using Blob store: ${storeId}`));
     return storeId;
   } catch (_) {
-    // Fallback: list all stores and check by name
-    try {
-      const list = execSync('vercel blob store list --limit 100', {
-        stdio: 'pipe',
-        encoding: 'utf8',
-      });
-      if (list.includes(storeId)) {
-        console.log(chalk.green(`✅ Using Blob store: ${storeId}`));
-        return storeId;
-      }
-    } catch {}
-
-    // Not found – instruct user
+    // Could not confirm via CLI. Ask the user.
     console.log('\n' + chalk.yellow('────────────────────────────────────────────'));
-    console.log(chalk.blueBright('ℹ️  This project needs a Vercel Blob store to persist OAuth data (users, clients, tokens).'));
+    console.log(chalk.blueBright('ℹ️  Could not confirm the Blob store via CLI.'));
     console.log(chalk.yellow('────────────────────────────────────────────\n'));
+
+    const { hasStore } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'hasStore',
+        message: `Have you already created the Blob store '${storeId}'?`,
+        default: true,
+      },
+    ]);
+
+    if (hasStore) {
+      console.log(chalk.green('👍  Continuing with deployment…'));
+      return storeId;
+    }
 
     console.log(`${chalk.white('1. Create the Blob store (run once):')}`);
     console.log('   ' + chalk.cyan(`vercel blob store add ${storeId} --region iad1`) + '\n');
 
     console.log(`${chalk.white('2. Deploy again:')}`);
-    console.log('   ' + chalk.cyan('mcpresso deploy') + '\n');
+    console.log('   ' + chalk.cyan(`npx mcpresso deploy --blob-store-id <store_id_here>`)+ '\n');
     process.exit(1);
   }
 }
