@@ -197,7 +197,7 @@ async function deployToPlatform(platform: any) {
 }
 
 async function setupVercelStorage() {
-  console.log(chalk.blue('🔧 Setting up Vercel Blob storage...'));
+  console.log(chalk.blue('🔧 Checking Vercel Blob storage...'));
   
   try {
     // Check if we're in a Vercel project
@@ -209,37 +209,31 @@ async function setupVercelStorage() {
     return;
   }
 
+  // Build recommended store id from package name or folder
+  let storeId = 'mcpresso-oauth';
   try {
-    // Check if Blob store already exists
-    console.log(chalk.gray('📦 Checking for existing Vercel Blob store...'));
-    execSync('vercel blob store get mcpresso-oauth', { stdio: 'pipe', encoding: 'utf8' });
-    console.log(chalk.green('✅ Vercel Blob store already exists'));
-    return;
-  } catch (error) {
-    // Blob store doesn't exist, proceed to create it
-  }
-
-  try {
-    // Create Blob store using CLI in a temporary directory to avoid "deploy path" conflicts
-    console.log(chalk.gray('📦 Creating Vercel Blob store...'));
-
-    const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'vercel-blob-'));
-    const cliCmd = ['vercel', 'blob', 'store', 'add', 'mcpresso-oauth'];
-
-    // If the user has a Vercel token in env, pass it to avoid interactive auth
-    if (process.env.VERCEL_TOKEN) {
-      cliCmd.push('--token', process.env.VERCEL_TOKEN);
+    const pkg = JSON.parse(await fsPromises.readFile('package.json', 'utf8'));
+    if (pkg.name) {
+      const safe = pkg.name.toString().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+      storeId = `mcpresso-${safe}-oauth`;
     }
+  } catch (_) {}
 
-    execSync(cliCmd.join(' '), { stdio: 'inherit', cwd: tmpDir });
+  try {
+    execSync(`vercel blob store get ${storeId}`, { stdio: 'pipe', encoding: 'utf8' });
+    console.log(chalk.green(`✅ Found Blob store: ${storeId}`));
+    return storeId;
+  } catch (err) {
+    console.log('\n' + chalk.yellow('────────────────────────────────────────────'));
+    console.log(chalk.blueBright('ℹ️  This project needs a Vercel Blob store to persist OAuth data (users, clients, tokens).'));
+    console.log(chalk.yellow('────────────────────────────────────────────\n'));
 
-    console.log(chalk.green('✅ Vercel Blob store created successfully'));
-    console.log(chalk.gray('💡 Blob store will be automatically linked to your deployment'));
-    
-  } catch (error) {
-    console.log(chalk.yellow('⚠️  Could not create Vercel Blob store automatically'));
-    console.log(chalk.gray('   You can create it manually with: vercel blob store add mcpresso-oauth'));
-    console.log(chalk.gray('   Error:'), error);
+    console.log(`${chalk.white('1. Create the Blob store (run once):')}`);
+    console.log('   ' + chalk.cyan(`vercel blob store add ${storeId} --region iad1`) + '\n');
+
+    console.log(`${chalk.white('2. Deploy again:')}`);
+    console.log('   ' + chalk.cyan('mcpresso deploy') + '\n');
+    process.exit(1);
   }
 }
 
