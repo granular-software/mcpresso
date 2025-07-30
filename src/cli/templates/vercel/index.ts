@@ -15,7 +15,7 @@ export const vercelTemplate: Template = {
     'hono': '^4.8.2',
     'bcryptjs': '^2.4.3',
     'mcpresso-oauth-server': '^1.1.0',
-    '@vercel/kv': '^1.0.0'
+    '@vercel/blob': '^1.0.0'
   }),
 
   getDevDependencies: () => ({
@@ -286,7 +286,7 @@ JWT_SECRET=your-secret-key-change-this-in-production
 # Clients are automatically registered when they connect to the server
 #
 # Storage Setup (for production):
-# 1. Run: vercel kv create mcpresso-oauth
+# 1. Create a Blob store: vercel blob store add mcpresso-oauth
 # 2. Or use Vercel Postgres: vercel postgres create
 # 3. Update the storage implementation in src/auth/oauth.ts
 # JWT_SECRET=your-secure-secret-key
@@ -323,7 +323,7 @@ import { MemoryStorage } from "mcpresso-oauth-server";
 import * as bcrypt from "bcryptjs";
 import { demoUsers } from "../data/users.js";
 // Simple memory storage for OAuth data
-// In production, this will be replaced with Vercel KV or Postgres
+// In production, this should be replaced with Vercel Blob storage or Postgres
 // For now, we use memory storage which works for development
 
 // Resolve base URL (same logic as in server.ts)
@@ -333,47 +333,82 @@ const BASE_URL =
 
 // Create storage for OAuth data
 // Local development: Memory storage (lifetime of process)
-// Vercel production: Vercel KV storage
+// Vercel production: Vercel Blob storage
 let storage: any;
 
 // Check if we're in Vercel environment
 if (process.env.VERCEL) {
-  // Use Vercel KV in production
+  // Attempt to use Vercel Blob as the persistent store in production
   try {
-    const { kv } = await import('@vercel/kv');
-    storage = {
-      // Implement storage interface using Vercel KV
-      async createClient(client: any) {
-        await kv.set(\`client:\${client.id}\`, client);
-      },
-      async getClient(clientId: string) {
-        return await kv.get(\`client:\${clientId}\`);
-      },
-      async createUser(user: any) {
-        await kv.set(\`user:\${user.id}\`, user);
-      },
-      async getUser(userId: string) {
-        return await kv.get(\`user:\${userId}\`);
-      },
-      async createCode(code: any) {
-        await kv.set(\`code:\${code.code}\`, code, { ex: 600 }); // 10 min expiry
-      },
-      async getCode(code: string) {
-        return await kv.get(\`code:\${code}\`);
-      },
-      async createToken(token: any) {
-        await kv.set(\`token:\${token.access_token}\`, token, { ex: 3600 }); // 1 hour expiry
-      },
-      async getToken(accessToken: string) {
-        return await kv.get(\`token:\${accessToken}\`);
+    const { put, list, del } = await import('@vercel/blob');
+    const encode = (obj: any) => JSON.stringify(obj);
+    const decode = async (url: string) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return (await res.json()) as any;
+      } catch (err) {
+        return null;
       }
     };
+    const path = (prefix: string, id: string) => \`\${prefix}/\${id}.json\`;
+    storage = {
+      async createClient(client: any) {
+        await put(path('client', client.id), encode(client), {
+          access: 'private',
+          contentType: 'application/json',
+        });
+      },
+      async getClient(clientId: string) {
+        const res = await list({ prefix: path('client', clientId), limit: 1 });
+        if (res.blobs.length === 0) return null;
+        return await decode(res.blobs[0].url);
+      },
+      async createUser(user: any) {
+        await put(path('user', user.id), encode(user), {
+          access: 'private',
+          contentType: 'application/json',
+        });
+      },
+      async getUser(userId: string) {
+        const res = await list({ prefix: path('user', userId), limit: 1 });
+        if (res.blobs.length === 0) return null;
+        return await decode(res.blobs[0].url);
+      },
+      async createCode(codeObj: any) {
+        await put(path('code', codeObj.code), encode({ ...codeObj, created: Date.now() }), {
+          access: 'private',
+          contentType: 'application/json',
+        });
+      },
+      async getCode(code: string) {
+        const res = await list({ prefix: path('code', code), limit: 1 });
+        if (res.blobs.length === 0) return null;
+        return await decode(res.blobs[0].url);
+      },
+      async createToken(token: any) {
+        await put(path('token', token.access_token), encode({ ...token, created: Date.now() }), {
+          access: 'private',
+          contentType: 'application/json',
+        });
+      },
+      async getToken(accessToken: string) {
+        const res = await list({ prefix: path('token', accessToken), limit: 1 });
+        if (res.blobs.length === 0) return null;
+        return await decode(res.blobs[0].url);
+      },
+      async revokeToken(accessToken: string) {
+        const res = await list({ prefix: path('token', accessToken), limit: 1 });
+        if (res.blobs.length === 0) return;
+        await del(res.blobs.map((b) => b.url));
+      },
+    };
   } catch (error) {
-    console.warn('Vercel KV not available, falling back to MemoryStorage');
+    console.warn('Vercel Blob not available, falling back to MemoryStorage');
     storage = new MemoryStorage();
   }
 } else {
-  // Use memory storage for local development (lifetime of process)
+  // Local development uses in-memory storage
   storage = new MemoryStorage();
 }
 

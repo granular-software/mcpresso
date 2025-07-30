@@ -6,19 +6,14 @@ The OAuth server needs persistent storage to maintain client registrations, user
 
 ## Quick Setup
 
-### Option 1: Vercel KV (Recommended)
+### Option 1 (Recommended): Vercel Blob
 
-1. **Create KV Database:**
+1. **Create a Blob Store:**
    ```bash
-   vercel kv create mcpresso-oauth
+   vercel blob store add mcpresso-oauth
    ```
 
-2. **Link to Project:**
-   ```bash
-   vercel kv link mcpresso-oauth
-   ```
-
-3. **Deploy:**
+2. **Deploy:**
    ```bash
    vercel --prod
    ```
@@ -42,7 +37,7 @@ The OAuth server needs persistent storage to maintain client registrations, user
 
 ## Automatic Setup
 
-The CLI automatically sets up Vercel KV storage during deployment:
+The CLI automatically sets up a Vercel Blob store during deployment:
 
 ```bash
 # Create and deploy your project
@@ -52,10 +47,10 @@ bun run mcpresso deploy
 ```
 
 This will:
-1. Check if Vercel KV exists
+1. Check if the Blob store exists
 2. Create it automatically if it doesn't exist
 3. Deploy your application
-4. Use Vercel KV storage in production automatically
+4. Use Vercel Blob storage in production automatically
 
 ## Storage Implementation
 
@@ -67,9 +62,9 @@ The generated code automatically detects the environment:
 - Fast and simple
 
 **Vercel Production:**
-- Uses `@vercel/kv` package
+- Uses `@vercel/blob` package
 - Automatically detects Vercel environment
-- Falls back to memory if KV unavailable
+- Falls back to memory if Blob unavailable
 - Persistent storage across deployments
 
 ## Manual Storage Implementation
@@ -78,23 +73,23 @@ If you want to implement your own storage, update `src/auth/oauth.ts`:
 
 ```typescript
 // Replace MemoryStorage with your implementation
-class VercelKVStorage extends MemoryStorage {
-  // Implement KV storage methods
+class VercelBlobStorage extends MemoryStorage {
+  // Implement Blob storage methods
 }
 
-const storage = new VercelKVStorage();
+const storage = new VercelBlobStorage();
 ```
 
 ## Development vs Production
 
 - **Development**: Uses `MemoryStorage` (in-memory, no persistence)
-- **Production**: Should use `VercelKVStorage` or `VercelPostgresStorage`
+- **Production**: Should use `VercelBlobStorage` or `VercelPostgresStorage`
 
 ## Environment Variables
 
 The following environment variables will be automatically set by Vercel:
 
-- `KV_URL` - Vercel KV connection string
+- `BLOB_READ_WRITE_TOKEN` - Vercel Blob RW token (only required for CLI usage)
 - `POSTGRES_URL` - Vercel Postgres connection string
 
 ## Troubleshooting
@@ -104,10 +99,10 @@ The following environment variables will be automatically set by Vercel:
 This usually means:
 1. Dynamic client registration is working
 2. But the server isn't persisting the registered clients
-3. Solution: Set up Vercel KV or Postgres storage
+3. Solution: Set up Vercel Blob or Postgres storage
 
 ### Storage Not Working
 
-1. Check if KV/Postgres is linked to your project
+1. Check if Blob/Postgres is linked to your project
 2. Verify environment variables are set
 3. Check Vercel dashboard for storage status 

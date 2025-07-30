@@ -197,7 +197,7 @@ async function deployToPlatform(platform: any) {
 }
 
 async function setupVercelStorage() {
-  console.log(chalk.blue('🔧 Setting up Vercel KV storage...'));
+  console.log(chalk.blue('🔧 Setting up Vercel Blob storage...'));
   
   try {
     // Check if we're in a Vercel project
@@ -210,24 +210,21 @@ async function setupVercelStorage() {
   }
 
   try {
-    // Check if KV already exists by trying to list it
-    console.log(chalk.gray('📦 Checking for existing Vercel KV...'));
-    const kvList = execSync('vercel kv list', { stdio: 'pipe', encoding: 'utf8' });
-    
-    if (kvList.includes('mcpresso-oauth')) {
-      console.log(chalk.green('✅ Vercel KV already exists'));
-      return;
-    }
+    // Check if Blob store already exists
+    console.log(chalk.gray('📦 Checking for existing Vercel Blob store...'));
+    execSync('vercel blob store get mcpresso-oauth', { stdio: 'pipe', encoding: 'utf8' });
+    console.log(chalk.green('✅ Vercel Blob store already exists'));
+    return;
   } catch (error) {
-    // KV doesn't exist, create it
+    // Blob store doesn't exist, proceed to create it
   }
 
   try {
-    // Create KV database using CLI in a temporary directory to avoid "deploy path" conflicts
-    console.log(chalk.gray('📦 Creating Vercel KV database...'));
+    // Create Blob store using CLI in a temporary directory to avoid "deploy path" conflicts
+    console.log(chalk.gray('📦 Creating Vercel Blob store...'));
 
-    const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'vercel-kv-'));
-    const cliCmd = ['vercel', 'kv', 'create', 'mcpresso-oauth', '--yes'];
+    const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'vercel-blob-'));
+    const cliCmd = ['vercel', 'blob', 'store', 'add', 'mcpresso-oauth'];
 
     // If the user has a Vercel token in env, pass it to avoid interactive auth
     if (process.env.VERCEL_TOKEN) {
@@ -236,13 +233,12 @@ async function setupVercelStorage() {
 
     execSync(cliCmd.join(' '), { stdio: 'inherit', cwd: tmpDir });
 
-    console.log(chalk.green('✅ Vercel KV created successfully'));
-    console.log(chalk.gray('💡 KV will be automatically linked to your deployment'));
+    console.log(chalk.green('✅ Vercel Blob store created successfully'));
+    console.log(chalk.gray('💡 Blob store will be automatically linked to your deployment'));
     
   } catch (error) {
-    console.log(chalk.yellow('⚠️  Could not create Vercel KV automatically'));
-    console.log(chalk.gray('   You can create it manually with: vercel kv create mcpresso-oauth'));
-    console.log(chalk.gray('   Or use Vercel Postgres: vercel postgres create'));
+    console.log(chalk.yellow('⚠️  Could not create Vercel Blob store automatically'));
+    console.log(chalk.gray('   You can create it manually with: vercel blob store add mcpresso-oauth'));
     console.log(chalk.gray('   Error:'), error);
   }
 }
