@@ -1,12 +1,9 @@
 import { Template } from './types.js';
-import { vercelTemplate } from './vercel/index.js';
-import { railwayTemplate } from './railway/index.js';
 
-// Import all templates
-const templates: Template[] = [
-  railwayTemplate,
-  vercelTemplate,
-];
+// Note: Templates are now external and managed via template-manager.ts
+// This file is kept for type definitions but no longer contains built-in templates
+
+const templates: Template[] = [];
 
 export function getTemplates(): Template[] {
   return templates;
