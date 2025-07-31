@@ -4,19 +4,26 @@ import inquirer from 'inquirer';
 import fs from 'fs/promises';
 import path from 'path';
 import { execSync } from 'child_process';
-import { createProject } from '../utils/project-creator.js';
-import { getTemplates } from '../templates/index.js';
+import { 
+  getAvailableTemplates, 
+  getTemplateInfo, 
+  cloneTemplate, 
+  configureTemplate, 
+  installDependencies 
+} from '../utils/template-manager.js';
 
 export const init = new Command('init')
-  .description('Initialize a new mcpresso project')
+  .description('Initialize a new mcpresso project from a template')
   .option('-y, --yes', 'Skip prompts and use defaults')
-  .option('-t, --template <template>', 'Template to use')
+  .option('-t, --template <template>', 'Template to use (ID or GitHub URL)')
   .option('-n, --name <name>', 'Project name')
-  .option('--oauth', 'Enable OAuth 2.1')
+  .option('-d, --description <description>', 'Project description')
+  .option('--no-install', 'Skip dependency installation')
+  .option('--no-git', 'Skip git initialization')
   .action(async (options) => {
     try {
-      console.log(chalk.blue.bold('🚀 Welcome to mcpresso!'));
-      console.log(chalk.gray('Let\'s create your MCP server together.\n'));
+      console.log(chalk.blue.bold('🚀 Welcome to mcpresso v1.0!'));
+      console.log(chalk.gray('Let\'s create your MCP server from a template.\n'));
 
       // Get project details
       const answers = await getProjectDetails(options);
@@ -33,31 +40,65 @@ export const init = new Command('init')
     }
   });
 
-async function getProjectDetails(options: any) {
-  const templates = getTemplates();
-  
+async function getProjectDetails(options: any): Promise<{
+  templateUrl: string;
+  name: string;
+  description: string;
+  install: boolean;
+  git: boolean;
+}> {
   if (options.yes) {
     return {
-      template: options.template || 'vercel',
+      templateUrl: options.template || 'template-express-no-auth',
       name: options.name || 'my-mcpresso-server',
-      authType: options.oauth ? 'oauth' : (options.authType || 'none'),
-      oauth: options.oauth || false,
-      token: options.token || false,
-      description: 'A mcpresso MCP server'
+      description: options.description || 'A mcpresso MCP server',
+      install: options.install !== false,
+      git: options.git !== false
     };
   }
 
-  const questions = [
+  // Get available templates
+  const templates = await getAvailableTemplates();
+  
+  // Ask for template selection
+  const templateChoices = [
+    ...templates.map(t => ({
+      name: `${t.name} - ${t.description}`,
+      value: t.url
+    })),
+    new inquirer.Separator(),
     {
-      type: 'list',
-      name: 'template',
-      message: 'Choose a deployment template:',
-      choices: templates.map(t => ({
-        name: `${t.name} - ${t.description}`,
-        value: t.id
-      })),
-      default: options.template || 'vercel'
-    },
+      name: 'Custom template URL...',
+      value: 'custom'
+    }
+  ];
+
+  const templateAnswer = await inquirer.prompt([{
+    type: 'list',
+    name: 'template',
+    message: 'Choose a template:',
+    choices: templateChoices
+  }]);
+
+  let templateUrl = templateAnswer.template;
+  
+  // If custom template selected, ask for URL
+  if (templateUrl === 'custom') {
+    const customUrlAnswer = await inquirer.prompt([{
+      type: 'input',
+      name: 'customUrl',
+      message: 'Enter GitHub repository URL:',
+      validate: (input: string) => {
+        if (!input.trim()) return 'URL is required';
+        if (!input.includes('github.com')) return 'Please enter a valid GitHub URL';
+        return true;
+      }
+    }]);
+    templateUrl = customUrlAnswer.customUrl;
+  }
+
+  // Get project details
+  const answers = await inquirer.prompt([
     {
       type: 'input',
       name: 'name',
@@ -75,41 +116,79 @@ async function getProjectDetails(options: any) {
       type: 'input',
       name: 'description',
       message: 'Describe your project:',
-      default: 'A mcpresso MCP server'
-    },
-    {
-      type: 'list',
-      name: 'authType',
-      message: 'Choose authentication type:',
-      choices: [
-        { name: 'None - No authentication', value: 'none' },
-        { name: 'OAuth 2.1 - Full OAuth flow', value: 'oauth' },
-        { name: 'Bearer Token - Simple token-based auth', value: 'token' }
-      ],
-      default: options.authType || 'none'
-    },
-    {
-      type: 'confirm',
-      name: 'git',
-      message: 'Initialize git repository?',
-      default: true
+      default: options.description || 'A mcpresso MCP server'
     },
     {
       type: 'confirm',
       name: 'install',
       message: 'Install dependencies now?',
-      default: true
+      default: options.install !== false
+    },
+    {
+      type: 'confirm',
+      name: 'git',
+      message: 'Initialize git repository?',
+      default: options.git !== false
     }
-  ];
+  ]);
 
-  const answers = await inquirer.prompt(questions);
-  
-  // Set oauth and token flags based on authType
   return {
-    ...answers,
-    oauth: answers.authType === 'oauth',
-    token: answers.authType === 'token'
+    templateUrl,
+    name: answers.name,
+    description: answers.description,
+    install: answers.install,
+    git: answers.git
   };
+}
+
+async function createProject(answers: {
+  templateUrl: string;
+  name: string;
+  description: string;
+  install: boolean;
+  git: boolean;
+}): Promise<void> {
+  const targetDir = path.join(process.cwd(), answers.name);
+  
+  // Check if directory already exists
+  try {
+    await fs.access(targetDir);
+    throw new Error(`Directory "${answers.name}" already exists. Please choose a different name.`);
+  } catch (error: any) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+
+  // Clone the template
+  await cloneTemplate(answers.templateUrl, targetDir);
+  
+  // Configure the template
+  await configureTemplate(targetDir, {
+    name: answers.name,
+    description: answers.description
+  });
+  
+  // Install dependencies if requested
+  if (answers.install) {
+    await installDependencies(targetDir);
+  }
+  
+  // Initialize git if requested
+  if (answers.git) {
+    try {
+      console.log(chalk.blue('📝 Initializing git repository...'));
+      execSync('git init', { stdio: 'inherit', cwd: targetDir });
+      execSync('git add .', { stdio: 'inherit', cwd: targetDir });
+      execSync('git commit -m "Initial commit from mcpresso template"', { 
+        stdio: 'inherit', 
+        cwd: targetDir 
+      });
+      console.log(chalk.green('✅ Git repository initialized'));
+    } catch (error) {
+      console.warn(chalk.yellow('⚠️  Could not initialize git repository'));
+    }
+  }
 }
 
 function showSuccessMessage(answers: any) {
@@ -132,7 +211,7 @@ function showSuccessMessage(answers: any) {
   }
   
   console.log('  npm run dev          # Start development server');
-  console.log('  npm run deploy       # Deploy to production');
+  console.log('  npm run build        # Build for production');
   
   console.log(chalk.blue.bold('\n📚 Documentation:'));
   console.log('  https://github.com/granular-software/mcpresso');

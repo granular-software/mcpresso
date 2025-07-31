@@ -1,4 +1,4 @@
-import { createMCPServer, createResource } from "../src/index";
+import { createMCPServer, createResource } from "../src/index.js";
 import { z } from "zod";
 
 // Example resource that requires authentication

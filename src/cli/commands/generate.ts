@@ -58,7 +58,7 @@ async function getGenerateConfig(options: any): Promise<GenerateConfig> {
     };
   }
 
-  const questions = [
+  const questions: any[] = [
     {
       type: 'input',
       name: 'source',
