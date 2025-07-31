@@ -940,7 +940,7 @@ export function createMCPServer(config: MCPServerConfig): Express {
 		if (methods) {
 			for (const methodName in methods) {
 			const method = methods[methodName];
-			const { description, inputSchema, handler, returnsResourceList } = method;
+			const { description, inputSchema, handler, returnsResourceList } = method!;
 			const toolName = methodName === "list" || methodName === "search" ? `${methodName}_${name}s` : `${methodName}_${name}`;
 
 			const tempServer = new McpServer({ name: "temp", version: "1.0.0" }, {});
@@ -966,7 +966,7 @@ export function createMCPServer(config: MCPServerConfig): Express {
 				
 				const result = await withRetry(() => handler(args, user), config.retry);
 				// Validate the handler's output against the defined schema.
-				const validatedResult = method.outputSchema.parse(result);
+				const validatedResult = method!.outputSchema.parse(result);
 				// For methods that return a list of resources, add the canonical URI to each item.
 				if (returnsResourceList && Array.isArray(validatedResult)) {
 					const resultsWithUris = validatedResult.map((item) => ({

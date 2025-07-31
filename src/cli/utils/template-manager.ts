@@ -98,28 +98,28 @@ const OFFICIAL_TEMPLATES: Template[] = [
       { name: 'SERVER_URL', description: 'Base URL of your server', required: true }
     ]
   },
-  {
-    id: 'template-express-test',
-    name: 'Express Test',
-    description: 'Test Express template',
-    category: 'express',
-    authType: 'none',
-    complexity: 'easy',
-    url: 'file:///Users/arthurhirel/Documents/joshu/joshu/apps/template-express-test',
-    features: [
-      'MCP server',
-      'TypeScript',
-      'Production ready'
-    ],
-    requirements: [
-      'Node.js 18+',
-      'npm or yarn'
-    ],
-    envVars: [
-      { name: 'PORT', description: 'Server port', required: false, default: '3000' },
-      { name: 'SERVER_URL', description: 'Base URL of your server', required: true }
-    ]
-  }
+  // {
+  //   id: 'template-express-test',
+  //   name: 'Express Test',
+  //   description: 'Test Express template',
+  //   category: 'express',
+  //   authType: 'none',
+  //   complexity: 'easy',
+  //   url: 'file:///Users/arthurhirel/Documents/joshu/joshu/apps/template-express-test',
+  //   features: [
+  //     'MCP server',
+  //     'TypeScript',
+  //     'Production ready'
+  //   ],
+  //   requirements: [
+  //     'Node.js 18+',
+  //     'npm or yarn'
+  //   ],
+  //   envVars: [
+  //     { name: 'PORT', description: 'Server port', required: false, default: '3000' },
+  //     { name: 'SERVER_URL', description: 'Base URL of your server', required: true }
+  //   ]
+  // }
 ];
 
 export async function getAvailableTemplates(): Promise<Template[]> {
