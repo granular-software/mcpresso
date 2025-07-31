@@ -345,7 +345,7 @@ export function createMCPAuthMiddleware(authConfig: MCPAuthConfig, serverUrl?: s
       const authHeader = req.headers[headerName.toLowerCase()];
       
       // Check for Bearer token
-      if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
+      if (!authHeader || !(typeof authHeader === 'string' ? authHeader.toLowerCase().startsWith('bearer ') : authHeader[0]!.toLowerCase().startsWith('bearer '))) {
         console.log("\n❌ AUTHENTICATION FAILED");
         console.log("🚫 Reason: Missing or invalid Authorization header");
         console.log(`🔍 Expected: '${headerName}: Bearer <token>'`);
@@ -363,7 +363,7 @@ export function createMCPAuthMiddleware(authConfig: MCPAuthConfig, serverUrl?: s
           });
       }
 
-      const receivedToken = authHeader.substring(7);
+      const receivedToken = typeof authHeader === 'string' ? authHeader.substring(7) : authHeader[0]!.substring(7);
       
       // Validate the bearer token
       if (receivedToken !== token) {
