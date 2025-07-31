@@ -304,7 +304,7 @@ export interface MCPAuthConfig {
  */
 export function createMCPAuthMiddleware(authConfig: MCPAuthConfig, serverUrl?: string) {
   
-  console.log("createMCPAuthMiddleware", authConfig, serverUrl);
+  // console.log("createMCPAuthMiddleware", authConfig, serverUrl);
 
   // Validate that we have either issuer, oauth server, or bearer token
   if (!authConfig.issuer && !authConfig.oauth && !authConfig.bearerToken) {
