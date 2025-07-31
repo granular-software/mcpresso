@@ -48,8 +48,18 @@ async function getProjectDetails(options: any): Promise<{
   git: boolean;
 }> {
   if (options.yes) {
+    // Resolve template ID to URL if needed
+    let templateUrl = options.template || 'template-express-no-auth';
+    if (!templateUrl.includes('github.com')) {
+      const templates = await getAvailableTemplates();
+      const template = templates.find(t => t.id === templateUrl);
+      if (template) {
+        templateUrl = template.url;
+      }
+    }
+    
     return {
-      templateUrl: options.template || 'template-express-no-auth',
+      templateUrl,
       name: options.name || 'my-mcpresso-server',
       description: options.description || 'A mcpresso MCP server',
       install: options.install !== false,
