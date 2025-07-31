@@ -375,14 +375,7 @@ JWT_SECRET=your-secret-key-change-this-in-production
 
 ## 🚀 Deployment
 
-Each template includes deployment instructions in its README. Common deployment options include:
-
-- **Railway**: `railway up`
-- **Vercel**: `vercel --prod`
-- **Docker**: `docker-compose up --build`
-- **Self-hosted**: `npm run build && npm start`
-
-For detailed deployment instructions, see the README in your chosen template.
+Each template includes deployment instructions in its README.
 
 ## 🚨 Troubleshooting
 
