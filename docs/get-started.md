@@ -1,372 +1,284 @@
-# Get Started with MCPresso
+# Getting Started with mcpresso
 
-This guide will walk you through creating your first MCPresso server using our CLI. You'll learn how to set up a project, add resources, and deploy to production.
+This guide will walk you through creating your first MCP server using mcpresso.
 
 ## Prerequisites
 
-Before you begin, make sure you have:
+- **Node.js 18+** - [Download here](https://nodejs.org/)
+- **Git** - [Download here](https://git-scm.com/)
+- **npm, yarn, or pnpm** - Your preferred package manager
 
-- **Node.js 18+** or **Bun** installed
-- A **package manager** (npm, yarn, or pnpm)
-- **Git** (optional, for version control)
+## Quick Start
 
-## Step 1: Create Your First Project
-
-The fastest way to get started is using our CLI:
+### 1. Install the CLI
 
 ```bash
-# Create a new MCPresso project
+npm install -g mcpresso
+```
+
+Or use npx (no installation required):
+
+```bash
 npx mcpresso init
 ```
 
-This will start an interactive setup process. You'll be asked several questions:
-
-### Project Configuration
-
-1. **Choose a deployment template:**
-   - **Vercel Functions** - Best for beginners, quick prototypes
-   - **Cloudflare Workers** - High performance, global edge
-   - **AWS Lambda** - Enterprise applications, AWS ecosystem
-   - **Docker Container** - Self-hosting, full control
-   - **Express Server** - Simple setup, easy debugging
-
-2. **Project details:**
-   - **Project name** - Choose a descriptive name (e.g., `my-notes-api`)
-   - **Description** - Describe what your server does
-   - **Author name** - Your name or organization
-   - **Email** - Your contact email
-
-3. **Authentication:**
-   - **Enable OAuth 2.1** - Choose whether to add authentication
-
-4. **Setup options:**
-   - **Initialize git repository** - Recommended for version control
-   - **Install dependencies** - Recommended to get started quickly
-
-### Example Session
+### 2. Create Your First Project
 
 ```bash
-$ npx mcpresso init
+# Interactive setup
+mcpresso init
 
-🚀 Welcome to mcpresso!
-Let's create your MCP server together.
-
-? Choose a deployment template: (Use arrow keys)
-❯ Vercel Functions - Serverless functions with edge runtime
-  Cloudflare Workers - Global edge computing platform
-  AWS Lambda - Serverless compute service
-  Docker Container - Self-hosted containerized deployment
-  Express Server - Traditional Node.js server
-
-? What's your project name? my-notes-api
-? Describe your project: A simple notes API with MCPresso
-? Your name: John Doe
-? Your email: john@example.com
-? Enable OAuth 2.1 authentication? No
-? Initialize git repository? Yes
-? Install dependencies now? Yes
-
-📁 Creating project: my-notes-api
-Template: Vercel Functions
-  Generating files...
-  Initializing git repository...
-  Installing dependencies...
-
-✅ Project created successfully!
+# Or use a specific template
+mcpresso init my-api --template template-express-no-auth --yes
 ```
 
-## Step 2: Explore Your Project
-
-After creation, your project will have this structure:
-
-```
-my-notes-api/
-├── src/
-│   ├── server.ts              # Main server file
-│   ├── resources/
-│   │   └── example.ts         # Example resource
-│   └── auth/                  # OAuth config (if enabled)
-│       └── oauth.ts
-├── api/                       # Vercel Functions handler
-│   └── index.ts
-├── package.json               # Dependencies and scripts
-├── vercel.json               # Vercel configuration
-├── .env.example              # Environment variables
-├── tsconfig.json             # TypeScript configuration
-├── .gitignore               # Git ignore rules
-└── README.md                # Project documentation
-```
-
-## Step 3: Start Development
-
-Navigate to your project and start the development server:
+### 3. Start Development
 
 ```bash
-cd my-notes-api
+cd my-api
 npm run dev
 ```
 
-This will start a local development server with hot reload. You should see:
+Your server will be running at `http://localhost:3000`!
+
+## Step-by-Step Guide
+
+### Step 1: Choose a Template
+
+When you run `mcpresso init`, you'll see a list of available templates:
 
 ```
-🚀 my-notes-api running on http://localhost:3000
+📋 Available Templates
+────────────────────────────────────────────────────────────
+
+1. Docker + OAuth2.1 + PostgreSQL
+   Production-ready MCP server with OAuth2.1 authentication and PostgreSQL database
+   Category: docker
+   Auth: oauth
+   Complexity: medium
+
+2. Express + OAuth2.1 + SQLite
+   Simple MCP server with OAuth2.1 authentication using SQLite database
+   Category: express
+   Auth: oauth
+   Complexity: easy
+
+3. Express + No Authentication
+   Simple MCP server without authentication for public APIs
+   Category: express
+   Auth: none
+   Complexity: easy
+
+4. Custom template URL...
 ```
 
-## Step 4: Test Your Server
+**For beginners**, we recommend starting with **"Express + No Authentication"** - it's the simplest template and perfect for learning.
 
-Your server is now running! You can test it with:
+### Step 2: Configure Your Project
+
+After selecting a template, you'll be prompted for:
+
+- **Project name**: Choose a descriptive name (e.g., `my-notes-api`)
+- **Description**: What your API does (e.g., `A simple notes management API`)
+- **Install dependencies**: Usually `yes` (recommended)
+- **Initialize git**: Usually `yes` (recommended)
+
+### Step 3: Explore Your Project
+
+Your new project will have this structure:
+
+```
+my-api/
+├── src/
+│   ├── server.ts          # Main server file
+│   └── resources/
+│       └── example.ts     # Example MCP resource
+├── package.json           # Dependencies and scripts
+├── README.md             # Documentation
+├── .env.example          # Environment variables
+├── tsconfig.json         # TypeScript config
+└── template.json         # Template metadata
+```
+
+### Step 4: Start Development
 
 ```bash
-# Test the health endpoint
-curl http://localhost:3000/
+# Install dependencies (if not done automatically)
+npm install
 
-# Test the example resource
-curl http://localhost:3000/notes
+# Start development server
+npm run dev
 ```
 
-## Step 5: Add Your First Resource
+Your server will be running at `http://localhost:3000` with:
+- **MCP server**: Available for AI agents
+- **Health check**: `http://localhost:3000/health`
+- **Hot reload**: Changes are reflected immediately
 
-Let's add a custom resource to your server. Use the CLI:
+### Step 5: Test Your API
+
+You can test your MCP server using any MCP client. The example template includes a notes resource with:
+
+- **List notes**: `GET /mcp/resources/notes`
+- **Get note**: `GET /mcp/resources/notes/{id}`
+- **Create note**: `POST /mcp/resources/notes`
+- **Update note**: `PUT /mcp/resources/notes/{id}`
+- **Delete note**: `DELETE /mcp/resources/notes/{id}`
+
+### Step 6: Build for Production
 
 ```bash
-npx mcpresso add-resource
+# Build the project
+npm run build
+
+# Start production server
+npm start
 ```
 
-This will guide you through creating a new resource:
+## Template Comparison
+
+| Template | Best For | Complexity | Auth | Database |
+|----------|----------|------------|------|----------|
+| **Express + No Auth** | Learning, public APIs | Easy | None | In-memory |
+| **Express + OAuth + SQLite** | Small apps, development | Easy | OAuth | SQLite file |
+| **Docker + OAuth + PostgreSQL** | Production, scaling | Medium | OAuth | PostgreSQL |
+
+## Environment Variables
+
+Each template includes a `.env.example` file. Copy it to `.env` and configure:
 
 ```bash
-? Resource name: user
-? Resource description: User management
-? Add fields to your resource? Yes
-? Field name: name
-? Field type: string
-? Is this field required? Yes
-? Add another field? Yes
-? Field name: email
-? Field type: string
-? Is this field required? Yes
-? Add another field? No
-? Which methods should this resource have? (Press <space> to select, <a> to toggle all, <i> to invert selection)
-❯ ◉ get    - Get a single user
-  ◉ list   - List all users
-  ◉ create - Create a new user
-  ◉ update - Update a user
-  ◉ delete - Delete a user
-  ◉ search - Search users
+cp .env.example .env
 ```
 
-The CLI will automatically:
-- Generate the resource file
-- Update your server configuration
-- Add the new resource to your MCP server
+Common variables:
+- `PORT`: Server port (default: 3000)
+- `SERVER_URL`: Your server's public URL
+- `JWT_SECRET`: Secret for OAuth tokens (OAuth templates)
+- `DATABASE_URL`: Database connection (Docker template)
 
-## Step 6: Customize Your Resource
+## Adding Custom Resources
 
-Open the generated resource file and customize it:
+Create new MCP resources in `src/resources/`:
 
 ```typescript
-// src/resources/user.ts
-import { z } from "zod";
-import { createResource } from "mcpresso";
+// src/resources/users.ts
+import { Resource } from 'mcpresso';
+import { z } from 'zod';
 
 const UserSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().email(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
 });
 
-// Replace with your actual data source
-const users: z.infer<typeof UserSchema>[] = [];
-
-export const userResource = createResource({
-  name: "user",
+export const usersResource: Resource = {
+  name: 'users',
+  description: 'User management',
   schema: UserSchema,
-  uri_template: "users/{id}",
-  methods: {
-    get: {
-      handler: async ({ id }) => {
-        return users.find((user) => user.id === id);
-      },
-    },
-    list: {
-      handler: async () => {
-        return users;
-      },
-    },
-    create: {
-      handler: async (data) => {
-        const newUser = {
-          id: Math.random().toString(36).substr(2, 9),
-          ...data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        users.push(newUser);
-        return newUser;
-      },
-    },
-    // ... other methods
-  },
-});
-```
-
-## Step 7: Deploy to Production
-
-When you're ready to deploy:
-
-```bash
-# Deploy using the CLI
-npx mcpresso deploy
-
-# Or use the npm script
-npm run deploy
-```
-
-The CLI will automatically detect your platform and deploy accordingly:
-
-- **Vercel**: Uses `vercel --prod`
-- **Cloudflare**: Uses `wrangler deploy`
-- **AWS Lambda**: Uses `serverless deploy`
-- **Docker**: Uses `docker-compose up -d`
-
-## Step 8: Test Your Deployed Server
-
-After deployment, you'll get a URL like:
-- Vercel: `https://my-notes-api.vercel.app`
-- Cloudflare: `https://my-notes-api.your-subdomain.workers.dev`
-- AWS: `https://your-api-gateway-url.amazonaws.com`
-
-Test your deployed server:
-
-```bash
-# Test the health endpoint
-curl https://your-deployed-url.com/
-
-# Test your resources
-curl https://your-deployed-url.com/users
-```
-
-## Next Steps
-
-### Add Authentication
-
-If you didn't enable OAuth during setup, you can add it later:
-
-1. Install the OAuth package:
-   ```bash
-   npm install mcpresso-oauth-server
-   ```
-
-2. Create the OAuth configuration:
-   ```bash
-   npx mcpresso add-resource --oauth
-   ```
-
-3. Update your environment variables with OAuth settings
-
-### Add Database Integration
-
-Replace the in-memory storage with a real database:
-
-```typescript
-// Example with PostgreSQL
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-export const userResource = createResource({
-  name: "user",
-  schema: UserSchema,
-  uri_template: "users/{id}",
-  methods: {
-    get: {
-      handler: async ({ id }) => {
-        const result = await pool.query(
-          'SELECT * FROM users WHERE id = $1',
-          [id]
-        );
-        return result.rows[0];
-      },
-    },
-    // ... other methods
-  },
-});
-```
-
-### Add Custom Methods
-
-Extend your resources with custom business logic:
-
-```typescript
-methods: {
-  // ... standard methods
   
-  search_by_email: {
-    description: "Search users by email domain",
-    inputSchema: z.object({
-      domain: z.string().describe("Email domain to search"),
-    }),
-    handler: async ({ domain }) => {
-      return users.filter(user => 
-        user.email.endsWith(`@${domain}`)
-      );
-    },
+  list: async () => {
+    // Return all users
   },
-}
+  
+  get: async (id: string) => {
+    // Return specific user
+  },
+  
+  create: async (data: { name: string; email: string }) => {
+    // Create new user
+  },
+};
 ```
 
-### Generate from OpenAPI
+Then add it to your server:
 
-If you have an existing API specification:
+```typescript
+// src/server.ts
+import { usersResource } from './resources/users.js';
+
+const server = createServer({
+  name: 'my-api',
+  version: '1.0.0',
+  resources: [notesResource, usersResource] // Add your resource
+});
+```
+
+## Deployment
+
+### Railway (Recommended)
+
+1. **Install Railway CLI**:
+   ```bash
+   npm install -g @railway/cli
+   ```
+
+2. **Deploy**:
+   ```bash
+   railway login
+   railway init
+   railway up
+   ```
+
+### Vercel
+
+1. **Install Vercel CLI**:
+   ```bash
+   npm install -g vercel
+   ```
+
+2. **Deploy**:
+   ```bash
+   vercel
+   ```
+
+### Docker
+
+For the Docker template:
 
 ```bash
-# Generate a server from OpenAPI spec
-npx mcpresso generate
-
-# Follow the prompts to convert your API
+# Build and run with Docker Compose
+docker-compose up --build
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Server won't start:**
+**"Port already in use"**
 ```bash
-# Check if dependencies are installed
-npm install
-
-# Check TypeScript errors
-npm run typecheck
+# Use a different port
+npm run dev -- --port 3001
 ```
 
-**Deployment fails:**
-- Verify platform credentials are configured
-- Check network connectivity
-- Review platform-specific logs
+**"Template not found"**
+```bash
+# List available templates
+mcpresso list
 
-**Resource not found:**
-- Make sure the resource is imported in `src/server.ts`
-- Check the resource file for syntax errors
-- Verify the URI template matches your requests
+# Use the correct template ID
+mcpresso init my-project --template template-express-no-auth
+```
+
+**"Build failed"**
+```bash
+# Clean and rebuild
+npm run clean
+npm run build
+```
 
 ### Getting Help
 
-- Check the [main documentation](../README.md)
-- Review platform-specific documentation
-- Open an issue on GitHub
+- **Documentation**: [mcpresso.dev](https://mcpresso.dev)
+- **GitHub**: [github.com/granular-software/mcpresso](https://github.com/granular-software/mcpresso)
+- **Issues**: [GitHub Issues](https://github.com/granular-software/mcpresso/issues)
 
-## Congratulations! 🎉
+## Next Steps
 
-You've successfully created and deployed your first MCPresso server! 
-
-Your server is now ready to:
-- ✅ Handle MCP protocol requests
-- ✅ Expose your resources to AI agents
-- ✅ Scale automatically with your chosen platform
-- ✅ Integrate with authentication (if enabled)
+1. **Explore the code**: Look at `src/server.ts` and `src/resources/example.ts`
+2. **Add your own resources**: Create new files in `src/resources/`
+3. **Customize authentication**: Modify OAuth settings in OAuth templates
+4. **Deploy to production**: Choose your preferred platform
+5. **Join the community**: Share your templates and get help
 
 Happy coding! 🚀 

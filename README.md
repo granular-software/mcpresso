@@ -23,18 +23,19 @@ The fastest way to create your first MCPresso server is using our CLI:
 
 ```bash
 # Create a new project in seconds
-npx mcpresso init
+mcpresso init
 
 # Follow the interactive prompts to configure your server
-# Choose your deployment platform (Railway, Vercel)
-# Choose your authentication type (None, OAuth 2.1, or Bearer Token)
+# Choose from available templates or use a custom GitHub URL
+# Configure your project name and description
 
 # Start development
 cd my-mcpresso-server
 npm run dev
 
-# Deploy to production
-npm run deploy
+# Build for production
+npm run build
+npm start
 ```
 
 For a complete step-by-step guide, see our **[Get Started Guide](./docs/get-started.md)**.
@@ -43,7 +44,23 @@ For a complete step-by-step guide, see our **[Get Started Guide](./docs/get-star
 
 ## 📦 Installation
 
-Install `mcpresso` via your preferred package manager:
+### CLI Installation
+
+Install the mcpresso CLI globally:
+
+```bash
+npm install -g mcpresso
+```
+
+Or use npx (no installation required):
+
+```bash
+npx mcpresso init
+```
+
+### Library Installation
+
+Install `mcpresso` as a library via your preferred package manager:
 
 ```bash
 npm install mcpresso
@@ -65,18 +82,19 @@ Create a new MCP server in seconds:
 
 ```bash
 # Create a new project
-npx mcpresso init
+mcpresso init
 
 # Follow the prompts to configure your server
-# Choose your deployment platform (Railway, Vercel)
-# Choose your authentication type (None, OAuth 2.1, or Bearer Token)
+# Choose from available templates or use a custom GitHub URL
+# Configure your project name and description
 
 # Start development
 cd my-mcpresso-server
 npm run dev
 
-# Deploy to production
-npm run deploy
+# Build for production
+npm run build
+npm start
 ```
 
 Or use the library directly:
@@ -166,48 +184,69 @@ The mcpresso CLI provides powerful tools for managing your MCP servers:
 
 ```bash
 # Create a new project
-npx mcpresso init
+mcpresso init
+
+# List available templates
+mcpresso list
+
+# Get template information
+mcpresso info <template-id>
 
 # Start development server
-npx mcpresso dev
+mcpresso dev
 
 # Build for production
-npx mcpresso build
-
-# Deploy to production
-npx mcpresso deploy
-
-# Add a new resource
-npx mcpresso add-resource
-
-# Generate from OpenAPI spec
-npx mcpresso generate
+mcpresso build
 ```
 
 ### Detailed Command Reference
 
-#### `npx mcpresso init`
+#### `mcpresso init`
 Creates a new mcpresso project with interactive prompts.
 
 **Options:**
 - `-y, --yes` - Skip prompts and use defaults
-- `-t, --template <template>` - Template to use (vercel, cloudflare, aws-lambda, docker, express)
+- `-t, --template <template>` - Template ID to use
 - `-n, --name <name>` - Project name
-- `--oauth` - Enable OAuth 2.1 authentication
+- `-d, --description <description>` - Project description
 
 **Examples:**
 ```bash
 # Interactive setup
-npx mcpresso init
+mcpresso init
 
-# Quick setup with defaults
-npx mcpresso init -y
+# Quick setup with specific template
+mcpresso init --template template-express-no-auth --name my-api --yes
 
-# Specific template
-npx mcpresso init -t vercel -n my-api
+# Custom GitHub template
+mcpresso init --template https://github.com/user/custom-template.git
 ```
 
-#### `npx mcpresso dev`
+#### `mcpresso list`
+Lists all available templates.
+
+**Examples:**
+```bash
+# List all templates
+mcpresso list
+
+# Filter by category
+mcpresso list --category express
+```
+
+#### `mcpresso info <template-id>`
+Shows detailed information about a specific template.
+
+**Examples:**
+```bash
+# Get template details
+mcpresso info template-docker-oauth-postgresql
+
+# Get info by URL
+mcpresso info https://github.com/user/custom-template.git
+```
+
+#### `mcpresso dev`
 Starts the development server with hot reload.
 
 **Options:**
@@ -217,16 +256,16 @@ Starts the development server with hot reload.
 **Examples:**
 ```bash
 # Default development server
-npx mcpresso dev
+mcpresso dev
 
 # Custom port
-npx mcpresso dev -p 4000
+mcpresso dev -p 4000
 
 # Custom host
-npx mcpresso dev -h 0.0.0.0
+mcpresso dev -h 0.0.0.0
 ```
 
-#### `npx mcpresso build`
+#### `mcpresso build`
 Builds the project for production.
 
 **Options:**
@@ -235,68 +274,78 @@ Builds the project for production.
 **Examples:**
 ```bash
 # Standard build
-npx mcpresso build
+mcpresso build
 
 # Clean build
-npx mcpresso build --clean
+mcpresso build --clean
 ```
 
-#### `npx mcpresso deploy`
-Deploys your server to production.
 
-**Options:**
-- `-p, --platform <platform>` - Deployment platform
-- `-y, --yes` - Skip confirmation prompts
-
-**Examples:**
-```bash
-# Auto-detect platform and deploy
-npx mcpresso deploy
-
-# Deploy to specific platform
-npx mcpresso deploy -p vercel
-
-# Deploy without confirmation
-npx mcpresso deploy -y
-```
-
-#### `npx mcpresso add-resource`
-Adds a new resource to your MCP server interactively.
-
-**Options:**
-- `-n, --name <name>` - Resource name
-- `-y, --yes` - Skip prompts and use defaults
-
-**Examples:**
-```bash
-# Interactive resource creation
-npx mcpresso add-resource
-
-# Quick resource with defaults
-npx mcpresso add-resource -n user -y
-```
-
-#### `npx mcpresso generate`
-Generates an MCP server from OpenAPI specification.
-
-**Options:**
-- `-s, --source <path>` - OpenAPI spec file path
-- `-o, --output <path>` - Output directory
-- `-n, --name <name>` - Project name
-- `--oauth` - Enable OAuth 2.1
-
-**Examples:**
-```bash
-# Interactive generation
-npx mcpresso generate
-
-# Generate from specific file
-npx mcpresso generate -s api-spec.json -o my-server
-```
 
 ## 🎯 Available Templates
 
-mcpresso provides several deployment templates to choose from:
+mcpresso provides several production-ready templates to choose from:
+
+### Official Templates
+
+| Template | Description | Category | Auth | Complexity |
+|----------|-------------|----------|------|------------|
+| **Docker + OAuth2.1 + PostgreSQL** | Production-ready MCP server with OAuth2.1 authentication and PostgreSQL database | Docker | OAuth | Medium |
+| **Express + OAuth2.1 + SQLite** | Simple MCP server with OAuth2.1 authentication using SQLite database | Express | OAuth | Easy |
+| **Express + No Authentication** | Simple MCP server without authentication for public APIs | Express | None | Easy |
+
+### Template Features
+
+Each template includes:
+- ✅ **Complete TypeScript setup** with proper configuration
+- ✅ **Express.js server** with MCP integration
+- ✅ **Example resources** with CRUD operations
+- ✅ **Environment variable configuration** with `.env.example`
+- ✅ **Development and production scripts** ready to use
+- ✅ **Comprehensive documentation** with usage examples
+- ✅ **Health check endpoints** for monitoring
+- ✅ **Proper error handling** and logging
+
+### Using Templates
+
+```bash
+# List all available templates
+mcpresso list
+
+# Get detailed information about a template
+mcpresso info template-docker-oauth-postgresql
+
+# Create a project from a specific template
+mcpresso init my-project --template template-express-no-auth --yes
+
+# Use a custom GitHub template
+mcpresso init my-project --template https://github.com/user/custom-template.git
+
+### Creating Custom Templates
+
+You can create your own templates and share them with the community:
+
+1. **Create a template repository** on GitHub with the following structure:
+   ```
+   your-template/
+   ├── template.json          # Template metadata
+   ├── package.json           # Dependencies and scripts
+   ├── README.md             # Documentation
+   ├── .env.example          # Environment variables
+   ├── tsconfig.json         # TypeScript config
+   └── src/
+       ├── server.ts         # Main server file
+       └── resources/        # MCP resources
+   ```
+
+2. **Use your template**:
+   ```bash
+   mcpresso init my-project --template https://github.com/user/your-template.git
+   ```
+
+3. **Share with the community** by adding it to the [mcpresso templates list](https://github.com/granular-software/mcpresso).
+
+For detailed template creation guidelines, see our [Template Creation Guide](./docs/template-creation.md).
 
 ### Vercel Functions
 - **Best for**: Beginners, quick prototypes, moderate traffic
