@@ -347,30 +347,7 @@ You can create your own templates and share them with the community:
 
 For detailed template creation guidelines, see our [Template Creation Guide](./docs/template-creation.md).
 
-### Vercel Functions
-- **Best for**: Beginners, quick prototypes, moderate traffic
-- **Features**: Edge runtime, global CDN, automatic HTTPS
-- **Free tier**: 100GB bandwidth/month
 
-### Cloudflare Workers
-- **Best for**: High performance, global deployment, edge computing
-- **Features**: Sub-10ms cold starts, global edge network, DDoS protection
-- **Free tier**: 100,000 requests/day
-
-### AWS Lambda
-- **Best for**: Enterprise applications, AWS ecosystem integration
-- **Features**: Pay-per-request, custom domains, advanced monitoring
-- **Free tier**: 1M requests/month
-
-### Docker Container
-- **Best for**: Self-hosting, full control, custom infrastructure
-- **Features**: Full control, no vendor lock-in, custom networking
-- **Free tier**: N/A (self-hosted)
-
-### Express Server
-- **Best for**: Simple setup, easy debugging, familiar environment
-- **Features**: Traditional Node.js server, easy debugging
-- **Free tier**: N/A (self-hosted)
 
 ## 🔧 Environment Variables
 
@@ -384,7 +361,7 @@ PORT=3000
 SERVER_URL=http://localhost:3000
 ```
 
-### OAuth 2.1 Variables (if enabled)
+### OAuth 2.1 Variables (OAuth templates)
 ```bash
 # OAuth Configuration
 OAUTH_ISSUER=http://localhost:3000
@@ -392,15 +369,20 @@ JWT_SECRET=your-secret-key-change-this-in-production
 ```
 
 ### Template-Specific Variables
-- **Vercel**: `SERVER_URL` (auto-set by Vercel)
-- **Cloudflare**: `SERVER_URL` (auto-set by Cloudflare)
-- **AWS Lambda**: `SERVER_URL`, `AWS_REGION`
-- **Docker**: `NODE_ENV=production`, `PORT`, `SERVER_URL`
-- **Express**: `NODE_ENV`, `PORT`, `SERVER_URL`
+- **Docker + PostgreSQL**: `DATABASE_URL`, `NODE_ENV=production`
+- **Express + SQLite**: `DATABASE_PATH`, `JWT_SECRET`
+- **Express + No Auth**: `PORT`, `SERVER_URL`
 
 ## 🚀 Deployment
 
-For detailed deployment instructions, see our [Deployment Guide](./deploy.md).
+Each template includes deployment instructions in its README. Common deployment options include:
+
+- **Railway**: `railway up`
+- **Vercel**: `vercel --prod`
+- **Docker**: `docker-compose up --build`
+- **Self-hosted**: `npm run build && npm start`
+
+For detailed deployment instructions, see the README in your chosen template.
 
 ## 🚨 Troubleshooting
 
@@ -434,23 +416,17 @@ npm run typecheck
 - Verify the server is running on the correct port
 - Review server logs
 
-### Platform-Specific Issues
+### Template-Specific Issues
 
-**Vercel:**
-- Ensure `vercel.json` is in project root
-- Check API directory structure
+**Docker template:**
+- Ensure Docker and Docker Compose are installed
+- Check if port 3000 is available
+- Verify PostgreSQL connection string
 
-**Cloudflare:**
-- Verify `wrangler.toml` configuration
-- Check worker name is unique
-
-**AWS Lambda:**
-- Verify handler path in `serverless.yml`
-- Check runtime is Node.js 18.x
-
-**Docker:**
-- Check Docker is running
-- Verify port 3000 is available
+**Express templates:**
+- Check if port 3000 is available
+- Verify environment variables are set
+- Ensure Node.js 18+ is installed
 
 ### Getting Help
 
@@ -860,12 +836,14 @@ auth: {
 
 ### Examples
 
-See complete working examples:
+See complete working examples in the [examples](./examples/) directory:
 
 - **No Auth**: [`examples/no-auth-demo.ts`](./examples/no-auth-demo.ts)
 - **Bearer Token**: [`examples/bearer-token-demo.ts`](./examples/bearer-token-demo.ts)
 - **External OAuth**: [`examples/separate-servers-demo.ts`](./examples/separate-servers-demo.ts)  
 - **Integrated OAuth**: [`examples/oauth2-simple-demo.ts`](./examples/oauth2-simple-demo.ts)
+
+For production-ready templates with authentication, see our [Available Templates](#-available-templates) section.
 
 ### Authentication Features
 
@@ -1007,45 +985,7 @@ packages/mcpresso/examples/mcpresso.ts
 
 ## Documentation
 
-- [MCPresso Generator Guide](./docs/generator.md)
-
-## 🛠️ OpenAPI Generator
-
-For generating MCPresso servers from OpenAPI specifications, we now have a dedicated package: **[mcpresso-openapi-generator](https://github.com/granular-software/mcpresso-openapi-generator)**.
-
-This standalone package provides a powerful CLI tool that can generate complete MCPresso servers directly from any OpenAPI 3.x specification with full type safety and MCP compliance.
-
-### Installation
-
-```bash
-npm install -g mcpresso-openapi-generator
-```
-
-### Quick Usage
-
-```bash
-# Generate a server from OpenAPI spec
-mcpresso-generate generate \
-  --source ./api-spec.json \
-  --output ./my-server \
-  --name my-api-server \
-  --verbose
-
-# Initialize a new MCPresso project
-mcpresso-generate init \
-  --name my-project \
-  --output ./projects \
-  --verbose
-```
-
-### Features
-
-- 🚀 **Automatic Generation**: Convert any OpenAPI 3.0 specification to a MCPresso server
-- 🔒 **Type Safety**: Full TypeScript support with Zod schema validation
-- 🎯 **MCP Compliance**: Generated servers follow MCP (Model Context Protocol) standards
-- 📦 **Ready to Run**: Complete project structure with dependencies and scripts
-- 🔧 **Customizable**: Configurable API client with authentication and error handling
-
-Visit the [mcpresso-openapi-generator repository](https://github.com/granular-software/mcpresso-openapi-generator) for full documentation and examples.
+- [Getting Started Guide](./docs/get-started.md)
+- [Template Creation Guide](./docs/template-creation.md)
 
 `
