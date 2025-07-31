@@ -86,7 +86,7 @@ async function generateProjectFiles(projectPath: string, config: ProjectConfig, 
   for (const [filePath, content] of Object.entries(templateFiles)) {
     const fullPath = path.join(projectPath, filePath);
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    await fs.writeFile(fullPath, content);
+    await fs.writeFile(fullPath, content as string);
   }
   
   // Generate .gitignore

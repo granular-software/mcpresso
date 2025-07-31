@@ -222,15 +222,35 @@ export async function configureTemplate(
     // Write updated package.json
     await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
     
-    // Read and update README.md
-    const readmePath = path.join(targetDir, 'README.md');
-    let readme = await fs.readFile(readmePath, 'utf-8');
+    // Replace placeholders in all relevant files
+    const filesToProcess = [
+      'README.md',
+      'src/server.ts',
+      'src/auth/oauth.ts',
+      'env.example',
+      'package.json'
+    ];
     
-    // Replace placeholders
-    readme = readme.replace(/{{PROJECT_NAME}}/g, config.name);
-    readme = readme.replace(/{{PROJECT_DESCRIPTION}}/g, config.description);
-    
-    await fs.writeFile(readmePath, readme);
+    for (const fileName of filesToProcess) {
+      const filePath = path.join(targetDir, fileName);
+      try {
+        const content = await fs.readFile(filePath, 'utf-8');
+        let updatedContent = content;
+        
+        // Replace placeholders
+        updatedContent = updatedContent.replace(/{{PROJECT_NAME}}/g, config.name);
+        updatedContent = updatedContent.replace(/{{PROJECT_DESCRIPTION}}/g, config.description);
+        
+        // Only write if content changed
+        if (updatedContent !== content) {
+          await fs.writeFile(filePath, updatedContent);
+          console.log(chalk.gray(`  Updated ${fileName}`));
+        }
+      } catch (error) {
+        // File might not exist, skip silently
+        console.log(chalk.gray(`  Skipped ${fileName} (not found)`));
+      }
+    }
     
     console.log(chalk.green('✅ Template configured successfully'));
     

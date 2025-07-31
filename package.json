@@ -3,24 +3,24 @@
   "version": "0.8.4",
   "description": "TypeScript package for Model Context Protocol (MCP) utilities and tools",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/mcpresso/src/index.js",
+  "types": "dist/mcpresso/src/index.d.ts",
   "source": "src/index.ts",
   "bin": {
-    "mcpresso": "dist/cli/index.js"
+    "mcpresso": "dist/mcpresso/src/cli/index.js"
   },
   "exports": {
     ".": {
       "source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "types": "./dist/mcpresso/src/index.d.ts",
+      "import": "./dist/mcpresso/src/index.js",
+      "require": "./dist/mcpresso/src/index.js"
     },
     "./server": {
       "source": "./src/server.ts",
-      "types": "./dist/server.d.ts",
-      "import": "./dist/server.js",
-      "require": "./dist/server.js"
+      "types": "./dist/mcpresso/src/server.d.ts",
+      "import": "./dist/mcpresso/src/server.js",
+      "require": "./dist/mcpresso/src/server.js"
     }
   },
   "files": [
@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "prepublishOnly": "bun run build",
-    "build": "bun build ./src/index.ts --outdir ./dist --target node && bun build ./src/cli/index.ts --outdir ./dist/cli --target node",
+    "build": "tsc && bun build ./src/index.ts --outdir ./dist --target node --format esm --outfile ./dist/index.bundle.js && bun build ./src/cli/index.ts --outdir ./dist/cli --target node --format esm --outfile ./dist/cli/index.bundle.js",
     "dev": "bun build ./src/index.ts --outdir ./dist --watch --target node",
     "clean": "rm -rf dist",
     "test": "bun test",
