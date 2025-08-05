@@ -10,8 +10,8 @@ import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/s
 import { type MCPAuthConfig, createMCPAuthMiddleware, createMCPProtectedResourceMetadataHandler, type UserProfile, type JWTPayload } from "./auth.js";
 import { randomUUID } from "crypto";
 import { AsyncLocalStorage } from "async_hooks";
-import { registerOAuthEndpoints } from '../../mcpresso-oauth-server/src/http-server.js';
-import { MCPOAuthServer } from '../../mcpresso-oauth-server/src/oauth-server.js';
+import { registerOAuthEndpoints } from 'mcpresso-oauth-server';
+import { MCPOAuthServer } from 'mcpresso-oauth-server';
 
 // Request context using AsyncLocalStorage for proper isolation
 interface RequestContext {
