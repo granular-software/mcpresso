@@ -210,6 +210,10 @@ function showSuccessMessage(answers: any) {
   console.log(`  ├── src/`);
   console.log(`  │   ├── server.ts`);
   console.log(`  │   └── resources/`);
+  console.log(`  │       ├── schemas/`);
+  console.log(`  │       │   └── Note.ts`);
+  console.log(`  │       └── handlers/`);
+  console.log(`  │           └── note.ts`);
   console.log(`  ├── package.json`);
   console.log(`  └── README.md`);
   

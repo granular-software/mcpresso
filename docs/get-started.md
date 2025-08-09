@@ -92,7 +92,10 @@ my-api/
 ├── src/
 │   ├── server.ts          # Main server file
 │   └── resources/
-│       └── example.ts     # Example MCP resource
+│       ├── schemas/       # Resource schemas
+│       │   └── Note.ts    # Note data model
+│       └── handlers/      # Resource handlers
+│           └── note.ts    # Note resource implementation
 ├── package.json           # Dependencies and scripts
 ├── README.md             # Documentation
 ├── .env.example          # Environment variables
@@ -162,45 +165,67 @@ Common variables:
 Create new MCP resources in `src/resources/`:
 
 ```typescript
-// src/resources/users.ts
-import { Resource } from 'mcpresso';
+// src/resources/schemas/User.ts
 import { z } from 'zod';
 
-const UserSchema = z.object({
+export const UserSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().email(),
 });
 
-export const usersResource: Resource = {
-  name: 'users',
-  description: 'User management',
+export type User = z.infer<typeof UserSchema>;
+```
+
+```typescript
+// src/resources/handlers/user.ts
+import { createResource } from 'mcpresso';
+import { UserSchema, type User } from '../schemas/User.js';
+
+// In-memory storage for demo
+const users: User[] = [];
+
+export const userResource = createResource({
+  name: 'user',
   schema: UserSchema,
-  
-  list: async () => {
-    // Return all users
+  uri_template: 'users/{id}',
+  methods: {
+    list: {
+      handler: async () => {
+        return users;
+      },
+    },
+    get: {
+      handler: async ({ id }) => {
+        return users.find(user => user.id === id);
+      },
+    },
+    create: {
+      handler: async (data) => {
+        const newUser = {
+          id: Math.random().toString(36).substr(2, 9),
+          name: data.name,
+          email: data.email,
+        };
+        users.push(newUser);
+        return newUser;
+      },
+    },
   },
-  
-  get: async (id: string) => {
-    // Return specific user
-  },
-  
-  create: async (data: { name: string; email: string }) => {
-    // Create new user
-  },
-};
+});
 ```
 
 Then add it to your server:
 
 ```typescript
 // src/server.ts
-import { usersResource } from './resources/users.js';
+import { noteResource } from './resources/handlers/note.js';
+import { userResource } from './resources/handlers/user.js';
 
-const server = createServer({
+const server = createMCPServer({
   name: 'my-api',
-  version: '1.0.0',
-  resources: [notesResource, usersResource] // Add your resource
+  serverUrl: BASE_URL,
+  resources: [noteResource, userResource] // Add your resource
 });
 ```
 
@@ -275,8 +300,8 @@ npm run build
 
 ## Next Steps
 
-1. **Explore the code**: Look at `src/server.ts` and `src/resources/example.ts`
-2. **Add your own resources**: Create new files in `src/resources/`
+1. **Explore the code**: Look at `src/server.ts` and `src/resources/handlers/note.ts`
+2. **Add your own resources**: Create new schemas and handlers in `src/resources/`
 3. **Customize authentication**: Modify OAuth settings in OAuth templates
 4. **Deploy to production**: Choose your preferred platform
 5. **Join the community**: Share your templates and get help

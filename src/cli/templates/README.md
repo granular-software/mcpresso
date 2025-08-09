@@ -92,9 +92,10 @@ To add a new template:
      generateFiles: async (config: ProjectConfig) => {
        const files: Record<string, string> = {};
 
-       // Generate your template files
-       files['src/server.ts'] = generateServerFile(config);
-       files['src/resources/example.ts'] = generateResourceExample(config);
+             // Generate your template files
+      files['src/server.ts'] = generateServerFile(config);
+      files['src/resources/schemas/Note.ts'] = generateNoteSchema(config);
+      files['src/resources/handlers/note.ts'] = generateNoteHandler(config);
        files['.env.example'] = generateEnvFile(config);
        
        // Add platform-specific config files
@@ -114,8 +115,12 @@ To add a new template:
      // Your server file generation logic
    }
 
-   function generateResourceExample(config: ProjectConfig): string {
-     // Your resource example generation logic
+   function generateNoteSchema(config: ProjectConfig): string {
+     // Your note schema generation logic
+   }
+
+   function generateNoteHandler(config: ProjectConfig): string {
+     // Your note handler generation logic
    }
 
    function generateEnvFile(config: ProjectConfig): string {
