@@ -3,24 +3,22 @@
   "version": "0.8.8",
   "description": "TypeScript package for Model Context Protocol (MCP) utilities and tools",
   "type": "module",
-  "main": "dist/mcpresso/src/index.js",
-  "types": "dist/mcpresso/src/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "source": "src/index.ts",
   "bin": {
-    "mcpresso": "dist/mcpresso/src/cli/index.js"
+    "mcpresso": "dist/cli/index.js"
   },
   "exports": {
     ".": {
-      "source": "./src/index.ts",
-      "types": "./dist/mcpresso/src/index.d.ts",
-      "import": "./dist/mcpresso/src/index.js",
-      "require": "./dist/mcpresso/src/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
     },
     "./server": {
-      "source": "./src/server.ts",
-      "types": "./dist/mcpresso/src/server.d.ts",
-      "import": "./dist/mcpresso/src/server.js",
-      "require": "./dist/mcpresso/src/server.js"
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "require": "./dist/server.js"
     }
   },
   "files": [

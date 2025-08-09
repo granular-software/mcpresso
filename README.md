@@ -280,8 +280,6 @@ mcpresso build
 mcpresso build --clean
 ```
 
-
-
 ## 🎯 Available Templates
 
 mcpresso provides several production-ready templates to choose from:
