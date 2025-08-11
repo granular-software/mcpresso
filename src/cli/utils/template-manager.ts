@@ -11,28 +11,6 @@ export interface Template {
   authType: 'oauth' | 'token' | 'none';
   complexity: 'easy' | 'medium' | 'hard';
   url: string;
-  {
-    id: 'template-docker-single-user',
-    name: 'Docker + Oauth2.1 + Single user (no DB)',
-    description: 'Single user authentication (= API key) while still implementing the OAuth2.1 protocol, as required by the MCP specs',
-    category: 'docker',
-    authType: 'oauth',
-    complexity: 'easy',
-    url: 'https://github.com/granular-software/template-docker-single-user',
-    features: [
-      'MCP server',
-      'TypeScript',
-      'Production ready'
-    ],
-    requirements: [
-      'Node.js 18+',
-      'npm or yarn'
-    ],
-    envVars: [
-      { name: 'PORT', description: 'Server port', required: false, default: '3000' },
-      { name: 'SERVER_URL', description: 'Base URL of your server', required: true }
-    ]
-  }
   features?: string[];
   requirements?: string[];
   envVars?: Array<{
@@ -68,6 +46,29 @@ const OFFICIAL_TEMPLATES: Template[] = [
     envVars: [
       { name: 'DATABASE_URL', description: 'PostgreSQL connection string', required: true },
       { name: 'JWT_SECRET', description: 'Secret key for JWT tokens', required: true },
+      { name: 'SERVER_URL', description: 'Base URL of your server', required: true }
+    ]
+  },
+  {
+    id: 'template-docker-single-user',
+    name: 'Docker + Oauth2.1 + Single user (no DB)',
+    description:
+      'Single user authentication (= API key) while still implementing the OAuth2.1 protocol, as required by the MCP specs',
+    category: 'docker',
+    authType: 'oauth',
+    complexity: 'easy',
+    url: 'https://github.com/granular-software/template-docker-single-user',
+    features: [
+      'MCP server',
+      'TypeScript',
+      'Production ready'
+    ],
+    requirements: [
+      'Node.js 18+',
+      'npm or yarn'
+    ],
+    envVars: [
+      { name: 'PORT', description: 'Server port', required: false, default: '3000' },
       { name: 'SERVER_URL', description: 'Base URL of your server', required: true }
     ]
   },
