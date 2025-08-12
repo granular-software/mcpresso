@@ -289,6 +289,7 @@ mcpresso provides several production-ready templates to choose from:
 | Template | Description | Category | Auth | Complexity |
 |----------|-------------|----------|------|------------|
 | **Docker + OAuth2.1 + PostgreSQL** | Production-ready MCP server with OAuth2.1 authentication and PostgreSQL database | Docker | OAuth | Medium |
+| **Docker + Single User (API Key)** | Docker-first MCP server for a single user authenticated via API key (no database required) | Docker | API key (single user) | Easy |
 | **Express + OAuth2.1 + SQLite** | Simple MCP server with OAuth2.1 authentication using SQLite database | Express | OAuth | Easy |
 | **Express + No Authentication** | Simple MCP server without authentication for public APIs | Express | None | Easy |
 

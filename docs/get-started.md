@@ -57,19 +57,25 @@ When you run `mcpresso init`, you'll see a list of available templates:
    Auth: oauth
    Complexity: medium
 
-2. Express + OAuth2.1 + SQLite
+2. Docker + Single User (API Key)
+   Docker-first MCP server for a single user authenticated via API key (no database required)
+   Category: docker
+   Auth: api key (single user)
+   Complexity: easy
+
+3. Express + OAuth2.1 + SQLite
    Simple MCP server with OAuth2.1 authentication using SQLite database
    Category: express
    Auth: oauth
    Complexity: easy
 
-3. Express + No Authentication
+4. Express + No Authentication
    Simple MCP server without authentication for public APIs
    Category: express
    Auth: none
    Complexity: easy
 
-4. Custom template URL...
+5. Custom template URL...
 ```
 
 **For beginners**, we recommend starting with **"Express + No Authentication"** - it's the simplest template and perfect for learning.
@@ -144,6 +150,7 @@ npm start
 |----------|----------|------------|------|----------|
 | **Express + No Auth** | Learning, public APIs | Easy | None | In-memory |
 | **Express + OAuth + SQLite** | Small apps, development | Easy | OAuth | SQLite file |
+| **Docker + Single User (API Key)** | Simple deployments, single-user tools | Easy | API key (single user) | None (file storage) |
 | **Docker + OAuth + PostgreSQL** | Production, scaling | Medium | OAuth | PostgreSQL |
 
 ## Environment Variables

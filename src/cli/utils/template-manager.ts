@@ -50,6 +50,31 @@ const OFFICIAL_TEMPLATES: Template[] = [
     ]
   },
   {
+    id: 'template-docker-single-user',
+    name: 'Docker + Single User (API Key)',
+    description: 'Docker-first MCP server with a single user authenticated via API key (no database required)',
+    category: 'docker',
+    authType: 'oauth',
+    complexity: 'easy',
+    url: 'https://github.com/granular-software/template-docker-single-user',
+    features: [
+      'Single user with API key login',
+      'OAuth2.1-compatible endpoints',
+      'No database required',
+      'File-based storage',
+      'Docker containerization'
+    ],
+    requirements: [
+      'Docker and Docker Compose'
+    ],
+    envVars: [
+      { name: 'PORT', description: 'Server port', required: false, default: '3000' },
+      { name: 'SERVER_URL', description: 'Base URL of your server', required: true },
+      { name: 'DATA_DIR', description: 'Directory for API key and OAuth state storage', required: false, default: './data' },
+      { name: 'API_KEY_FILE', description: 'Optional path to API key file', required: false }
+    ]
+  },
+  {
     id: 'template-express-oauth-sqlite',
     name: 'Express + OAuth2.1 + SQLite',
     description: 'Simple MCP server with OAuth2.1 authentication using SQLite database',

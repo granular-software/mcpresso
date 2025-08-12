@@ -549,5 +549,6 @@ Check out these example templates for inspiration:
 - [template-express-no-auth](https://github.com/granular-software/template-express-no-auth)
 - [template-express-oauth-sqlite](https://github.com/granular-software/template-express-oauth-sqlite)
 - [template-docker-oauth-postgresql](https://github.com/granular-software/template-docker-oauth-postgresql)
+- [template-docker-single-user](https://github.com/granular-software/template-docker-single-user)
 
 Happy template creating! 🚀 
