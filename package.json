@@ -1,6 +1,6 @@
 {
   "name": "mcpresso",
-  "version": "0.8.14",
+  "version": "0.8.15",
   "description": "TypeScript package for Model Context Protocol (MCP) utilities and tools",
   "type": "module",
   "main": "dist/index.js",
