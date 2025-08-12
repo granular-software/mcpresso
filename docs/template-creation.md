@@ -136,7 +136,7 @@ export default expressApp;
 if (process.argv[1] === new URL(import.meta.url).pathname) {
   const port = process.env.PORT || 3000;
   console.log("Starting mcpresso server on port " + port);
-  console.log("MCP Inspector URL: http://localhost:" + port);
+  console.log("Server URL: " + BASE_URL);
   
   expressApp.listen(port, () => {
     console.log("Server running on http://localhost:" + port);
