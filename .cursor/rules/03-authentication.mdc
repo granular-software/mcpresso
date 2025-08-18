@@ -1,0 +1,80 @@
+# Authentication Patterns
+
+## No Authentication
+```typescript
+const server = createMCPServer({
+  name: "public_api",
+  resources: [resource],
+  // No auth field = public access
+});
+```
+
+## Bearer Token
+```typescript
+const server = createMCPServer({
+  name: "internal_api",
+  resources: [resource],
+  auth: {
+    bearerToken: {
+      token: "sk-1234567890abcdef",
+      userProfile: {
+        id: "api-client",
+        username: "internal-service",
+        scopes: ["read", "write"],
+      },
+    },
+  },
+});
+```
+
+## OAuth 2.1
+```typescript
+const server = createMCPServer({
+  name: "production_api",
+  resources: [resource],
+  auth: {
+    issuer: "https://auth.example.com",
+    serverUrl: "https://api.example.com",
+    jwtSecret: process.env.JWT_SECRET,
+    userLookup: async (jwtPayload) => {
+      return await db.users.findById(jwtPayload.sub);
+    },
+  },
+});
+```
+
+## User Context in Handlers
+```typescript
+// OAuth/Bearer Token handlers
+handler: async (data, user) => {
+  if (!user) throw new Error("Authentication required");
+  
+  // user object contains:
+  // - user.id: Unique identifier
+  // - user.username: Username
+  // - user.email: Email (if available)
+  // - user.scopes: Permission scopes
+  
+  return await processDataForUser(data, user);
+}
+
+// No auth handlers
+handler: async (data) => {
+  // No user context
+  return await processData(data);
+}
+```
+
+## Environment Variables
+```bash
+# OAuth
+JWT_SECRET=your-secure-secret-key
+SERVER_URL=https://your-server.com
+
+# Bearer Token
+API_KEY=your-api-key-here
+```
+description:
+globs:
+alwaysApply: false
+---

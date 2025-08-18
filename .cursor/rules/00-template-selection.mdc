@@ -1,0 +1,47 @@
+# Choose Your Template
+
+## 🚀 Express + No Auth
+**Use when:** Building public APIs, prototyping, no user accounts needed
+- No authentication
+- In-memory storage
+- Express.js server
+- Perfect for development
+
+## 🔐 Express + OAuth + SQLite  
+**Use when:** Small apps, development with authentication, single server
+- OAuth2.1 authentication
+- SQLite database
+- Express.js server
+- Good for small to medium apps
+
+## 🐳 Docker + Single User
+**Use when:** Internal tools, simple apps, consistent deployment
+- API key authentication
+- SQLite database
+- Docker containerization
+- Single user system
+
+## 🚢 Docker + OAuth + PostgreSQL
+**Use when:** Production apps, multi-user systems, scalable deployments
+- OAuth2.1 authentication
+- PostgreSQL database
+- Docker containerization
+- Production-ready infrastructure
+
+## Quick Decision Tree
+```
+Need authentication? → No → Express + No Auth
+                    → Yes → Need multi-user? → No → Docker + Single User
+                                           → Yes → Need production DB? → No → Express + OAuth + SQLite
+                                                                      → Yes → Docker + OAuth + PostgreSQL
+```
+
+## Migration Path
+Start simple, upgrade as needed:
+- No Auth → OAuth (add auth layer)
+- SQLite → PostgreSQL (change database)
+- Express → Docker (add containerization)
+description:
+globs:
+alwaysApply: false
+---

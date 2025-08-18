@@ -1,0 +1,101 @@
+# Server Configuration
+
+## Basic Server
+```typescript
+import { createMCPServer } from "mcpresso";
+
+const server = createMCPServer({
+  name: "my_server",
+  resources: [userResource, noteResource],
+  
+  // Expose schemas for AI agents
+  exposeTypes: true,
+});
+```
+
+## Advanced Configuration
+```typescript
+const server = createMCPServer({
+  name: "production_server",
+  resources: [userResource, noteResource],
+  
+  // Expose schemas for AI agents
+  exposeTypes: true,
+  
+  // Rate limiting
+  rateLimit: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 100,                // 100 requests per window per IP
+  },
+  
+  // Automatic retries
+  retry: {
+    retries: 3,                // 3 retry attempts
+    factor: 2,                 // Exponential backoff
+    minTimeout: 1000,          // Start with 1 second
+    maxTimeout: 10000,         // Cap at 10 seconds
+  },
+  
+  // Server metadata
+  serverMetadata: {
+    name: "My API Server",
+    version: "1.0.0",
+    description: "User and note management API",
+    capabilities: {
+      authentication: true,
+      rateLimiting: true,
+      retries: true,
+    },
+  },
+});
+```
+
+## Express Integration
+```typescript
+import express from 'express';
+import { createMCPServer } from 'mcpresso';
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Middleware
+app.use(express.json());
+
+// Create MCP server
+const mcpServer = createMCPServer({
+  name: "my_api",
+  resources: [resource],
+  exposeTypes: true,
+});
+
+// Mount MCP server on Express
+app.use('/api', mcpServer.expressMiddleware());
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
+});
+```
+
+## Environment Variables
+```bash
+# Server
+PORT=3000
+NODE_ENV=production
+
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/db
+DB_PATH=data/app.db
+
+# Authentication
+JWT_SECRET=your-secure-secret
+API_KEY=your-api-key
+```
+description:
+globs:
+alwaysApply: false
+---
