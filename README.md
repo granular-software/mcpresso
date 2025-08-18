@@ -4,17 +4,13 @@
 
 mcpresso is a TypeScript framework that handles the complexity of building MCP (Model Context Protocol) servers so you can focus on your business logic.
 
-## The Problem
-
-Building a vanilla MCP server requires:
+Building a MCP server requires:
 - Implementing the MCP protocol specification
 - Building authentication systems (OAuth 2.1)
 - Creating resource management layers
 - Handling validation and error responses
 
-**This takes weeks and hundreds of lines of boilerplate.**
-
-## The Solution
+## Solution
 
 mcpresso gives you a working MCP server in minutes. Define your data models with Zod schemas, and mcpresso automatically handles everything else.
 
