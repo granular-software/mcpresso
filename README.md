@@ -12,25 +12,35 @@ Building a vanilla MCP server requires:
 - Creating resource management layers
 - Handling validation and error responses
 
+**This takes weeks and hundreds of lines of boilerplate.**
+
 ## The Solution
 
 mcpresso gives you a working MCP server in minutes. Define your data models with Zod schemas, and mcpresso automatically handles everything else.
 
 ## Features
 
-- **🔐 Authentication** - [OAuth2.1](https://github.com/your-org/joshu/tree/main/apps/template-docker-oauth-postgresql), bearer tokens, or none
-- **📊 Resources** - [Automatic CRUD operations](./examples/basic-crud.ts) with type-safe validation
-- **🔗 Relationships** - [Define connections between resources](./docs/core-concepts.md#relationships)
-- **⚡ Custom Methods** - [Extend beyond CRUD](./examples/custom-methods.ts) with business logic
-- **🏢 Multi-tenancy** - [User data injection](./examples/multi-tenancy.ts) and scope-based access
-- **🛡️ Server Management** - [Rate limiting](./examples/rate-limiting.ts), [retry with backoff](./examples/retry-with-backoff.ts), [server metadata](./examples/server-metadata.ts)
-- **📡 MCP Compliance** - Server-side events, SSE streaming, schema exposure
+- **Authentication** - [OAuth 2.1](https://github.com/granular-software/joshu/tree/main/apps/template-docker-oauth-postgresql), bearer tokens, or none
+- **Resources** - [Automatic CRUD operations](./examples/basic-crud.ts) with type-safe validation
+- **Relationships** - [Define connections between resources](./docs/core-concepts.md#relationships)
+- **Custom Methods** - [Extend beyond CRUD](./examples/custom-methods.ts) with business logic
+- **Multi-tenancy** - [User data injection](./examples/multi-tenancy.ts) and scope-based access
+- **Server Management** - [Rate limiting](./examples/rate-limiting.ts), [retry with backoff](./examples/retry-with-backoff.ts), [server metadata](./examples/server-metadata.ts)
+- **MCP Compliance** - [Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) with SSE support, [OAuth 2.1 authorization](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization), [tools and resources](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
+
+## MCP Standards Compliance
+
+mcpresso follows the latest [Model Context Protocol specifications](https://modelcontextprotocol.io/specification/2025-06-18/basic) including:
+- **Streamable HTTP Transport** - [Latest transport specification](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) with SSE support for real-time communication
+- **OAuth 2.1 Authorization** - [Latest authorization standard](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization) as specified in MCP 2025-06-18
+- **Tools and Resources** - [Proper MCP tool definition](https://modelcontextprotocol.io/specification/2025-06-18/server/tools) and resource management
+- **Protocol Compliance** - Full adherence to MCP lifecycle, message format, and error handling requirements
 
 ## Quick Start
 
 ```bash
 # Create and start a server in 2 minutes
-npx mcpresso init my-server
+npx mcpresso init
 cd my-server
 npm run dev
 ```
@@ -42,8 +52,8 @@ Your MCP server is now running at `http://localhost:3000`.
 | Template | Use Case | Auth | Database |
 |----------|----------|------|----------|
 | **Express + No Auth** | Public APIs, development | None | In-memory |
-| **Express + OAuth + SQLite** | Small applications | OAuth2.1 | SQLite |
-| **Docker + OAuth + PostgreSQL** | Production deployments | OAuth2.1 | PostgreSQL |
+| **Express + OAuth + SQLite** | Small applications | OAuth 2.1 | SQLite |
+| **Docker + OAuth + PostgreSQL** | Production deployments | OAuth 2.1 | PostgreSQL |
 | **Docker + Single User** | Internal tools | API Key | None |
 
 ## Documentation
@@ -62,4 +72,4 @@ Your MCP server is now running at `http://localhost:3000`.
 
 ---
 
-**mcpresso** - MCP servers that work out of the box.
+**mcpresso** - MCP servers that work out of the box, following the latest [Model Context Protocol specifications](https://modelcontextprotocol.io/specification/2025-06-18/basic).
