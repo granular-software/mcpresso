@@ -1,8 +1,16 @@
 # mcpresso
 
+[![npm](https://img.shields.io/npm/v/mcpresso.svg)](https://www.npmjs.com/package/mcpresso)
+[![CI Status](https://github.com/granular-software/mcpresso/workflows/CI/badge.svg)](https://github.com/granular-software/mcpresso/actions)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![Project Status](https://img.shields.io/badge/status-active-brightgreen.svg)](https://github.com/granular-software/mcpresso)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Build MCP servers that work out of the box.**
 
 mcpresso is a TypeScript framework that handles the complexity of building MCP (Model Context Protocol) servers so you can focus on your business logic.
+
+**Supported Node.js version:** 18.0.0 or higher
 
 Building a MCP server requires:
 - Implementing the MCP protocol specification
@@ -16,13 +24,12 @@ mcpresso gives you a working MCP server in minutes. Define your data models with
 
 ## Features
 
-- **Authentication** - [OAuth 2.1](https://github.com/granular-software/joshu/tree/main/apps/template-docker-oauth-postgresql), bearer tokens, or none
+- **Authentication** - [OAuth 2.1](https://github.com/granular-software/template-docker-oauth-postgresql), bearer tokens, or none
 - **Resources** - [Automatic CRUD operations](./examples/basic-crud.ts) with type-safe validation
 - **Relationships** - [Define connections between resources](./docs/core-concepts.md#relationships)
 - **Custom Methods** - [Extend beyond CRUD](./examples/custom-methods.ts) with business logic
 - **Multi-tenancy** - [User data injection](./examples/multi-tenancy.ts) and scope-based access
 - **Server Management** - [Rate limiting](./examples/rate-limiting.ts), [retry with backoff](./examples/retry-with-backoff.ts), [server metadata](./examples/server-metadata.ts)
-- **MCP Compliance** - [Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) with SSE support, [OAuth 2.1 authorization](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization), [tools and resources](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
 
 ## MCP Standards Compliance
 
@@ -65,6 +72,19 @@ Your MCP server is now running at `http://localhost:3000`.
 - **[Basic CRUD](./examples/basic-crud.ts)** - Resource management
 - **[Custom Methods](./examples/custom-methods.ts)** - Business logic beyond CRUD
 - **[Multi-tenancy](./examples/multi-tenancy.ts)** - User isolation and access control
+
+
+## Contributing
+
+We welcome contributions to mcpresso! New features are planned and actively being developed. If you'd like to contribute:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+Please ensure your code follows our existing style and includes appropriate tests.
 
 ---
 
