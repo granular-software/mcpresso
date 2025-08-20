@@ -12,7 +12,7 @@ mcpresso is a TypeScript framework that handles the complexity of building MCP (
 
 **Supported Node.js version:** 18.0.0 or higher
 
-Building a MCP server requires:
+Building an MCP server requires:
 - Implementing the MCP protocol specification
 - Building authentication systems (OAuth 2.1)
 - Creating resource management layers
