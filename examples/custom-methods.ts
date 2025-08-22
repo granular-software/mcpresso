@@ -39,6 +39,7 @@ function getCurrentTimestamp(): string {
 const taskResource = createResource({
   name: "task",
   schema: TaskSchema,
+  uri_template: "tasks/{id}",
   methods: {
     // Standard CRUD methods are automatically generated
     create: {
@@ -58,7 +59,7 @@ const taskResource = createResource({
         return task;
       },
     },
-    read: {
+    get: {
       handler: async (args: { id: string }) => {
         const task = tasks.find(t => t.id === args.id);
         if (!task) throw new Error("Task not found");
@@ -216,6 +217,6 @@ const server = createMCPServer({
 server.listen(3000, () => {
   console.log("Custom methods MCP server running on http://localhost:3000");
   console.log("Available methods:");
-  console.log("- Standard CRUD: create, read, update, delete, list");
+  console.log("- Standard CRUD: create, get, update, delete, list");
   console.log("- Custom methods: searchByStatus, searchByAssignee, getOverdueTasks, bulkUpdateStatus, getTaskStatistics");
 }); 

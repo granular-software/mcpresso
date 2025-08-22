@@ -78,6 +78,7 @@ function getCurrentUser(user?: any): User {
 const userResource = createResource({
   name: "user",
   schema: UserSchema,
+  uri_template: "users/{id}",
   methods: {
     create: {
       handler: async (args: Partial<User>, user?: any) => {
@@ -104,7 +105,7 @@ const userResource = createResource({
       },
     },
     
-    read: {
+    get: {
       handler: async (args: { id: string }, user?: any) => {
         const currentUser = getCurrentUser(user);
         const targetUser = users.find(u => u.id === args.id);
@@ -210,6 +211,7 @@ const userResource = createResource({
 const projectResource = createResource({
   name: "project",
   schema: ProjectSchema,
+  uri_template: "projects/{id}",
   methods: {
     create: {
       handler: async (args: Partial<Project>, user?: any) => {
@@ -231,7 +233,7 @@ const projectResource = createResource({
       },
     },
     
-    read: {
+    get: {
       handler: async (args: { id: string }, user?: any) => {
         const currentUser = getCurrentUser(user);
         const project = projects.find(p => p.id === args.id);
@@ -345,12 +347,20 @@ const server = createMCPServer({
   name: "multi_tenant_server",
   resources: [userResource, projectResource],
   auth: {
-    type: "bearer",
-    validateToken: async (token: string) => {
+    bearerToken: {
+      token: "demo-token",
+      userProfile: {
+        id: "demo-user",
+        username: "demo",
+        email: "demo@example.com",
+        scopes: ["admin"]
+      }
+    },
+    userLookup: async (jwtPayload) => {
       // In a real app, you'd validate the JWT token here
       // For demo purposes, we'll simulate a user lookup
-      const user = users.find(u => u.id === token);
-      if (!user) throw new Error("Invalid token");
+      const user = users.find(u => u.id === jwtPayload.sub);
+      if (!user) return null;
       return user;
     },
   },

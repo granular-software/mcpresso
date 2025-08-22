@@ -11,11 +11,10 @@ const server = createMCPServer({
   name: "retry_server",
   resources: [],
   retry: {
-    maxAttempts: 3,
-    baseDelay: 1000, // 1 second
-    maxDelay: 10000, // 10 seconds
-    backoffMultiplier: 2,
-    retryableErrors: ["ECONNRESET", "ETIMEDOUT", "ENOTFOUND"],
+    retries: 3,
+    factor: 2,
+    maxTimeout: 10000,
+    minTimeout: 1000,
   },
 });
 
