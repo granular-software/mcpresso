@@ -19,8 +19,6 @@ server.listen(3000, () => {
   console.log("");
   console.log("This server has:");
   console.log("  ✅ MCP protocol compliance");
-  console.log("  ✅ Server-side events");
-  console.log("  ✅ SSE streaming support");
   console.log("  ✅ Health check endpoint");
   console.log("");
   console.log("Next: Add resources to make it useful!");
