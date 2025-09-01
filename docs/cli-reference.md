@@ -19,7 +19,7 @@ Creates a new mcpresso project with interactive prompts.
 mcpresso init
 
 # Quick setup with specific template
-mcpresso init --template template-express-no-auth --name my-api --yes
+mcpresso init --template template-docker-oauth-postgresql --name my-api --yes
 
 # Custom GitHub template
 mcpresso init --template https://github.com/user/custom-template.git

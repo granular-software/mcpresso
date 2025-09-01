@@ -1,28 +1,25 @@
-# mcpresso
+# mcpresso · Make MCP servers actually usable
 
 [![npm](https://img.shields.io/npm/v/mcpresso.svg)](https://www.npmjs.com/package/mcpresso)
 [![CI Status](https://github.com/granular-software/mcpresso/workflows/CI/badge.svg)](https://github.com/granular-software/mcpresso/actions)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
-[![Project Status](https://img.shields.io/badge/status-active-brightgreen.svg)](https://github.com/granular-software/mcpresso)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Build MCP servers that work out of the box.**
+**The toolkit that turns broken MCP servers into production-grade tools.**
 
-mcpresso is a TypeScript framework that handles the complexity of building MCP (Model Context Protocol) servers so you can focus on your business logic.
+![Demo](https://github.com/valentinsimplifier/documentation/blob/main/gif.gif)
 
-**Supported Node.js version:** 18.0.0 or higher
+## Quick Start
 
-Building an MCP server requires:
-- Implementing the MCP protocol specification
-- Building authentication systems (OAuth 2.1)
-- Creating resource management layers
-- Handling validation and error responses
+```bash
+npx mcpresso init
+cd my-server
+npm run dev
+```
 
-## Solution
+Your MCP server is live at `http://localhost:3000` in under 2 minutes.
 
-mcpresso gives you a working MCP server in minutes. Define your data models with Zod schemas, and mcpresso automatically handles everything else.
-
-## Features
+## Why mcpresso?
 
 - **Authentication** - [OAuth 2.1](https://github.com/granular-software/template-docker-oauth-postgresql), bearer tokens, or none
 - **Resources** - [Automatic CRUD operations](./examples/basic-crud.ts) with type-safe validation
@@ -31,6 +28,33 @@ mcpresso gives you a working MCP server in minutes. Define your data models with
 - **Multi-tenancy** - [User data injection](./examples/multi-tenancy.ts) and scope-based access
 - **Server Management** - [Rate limiting](./examples/rate-limiting.ts), [retry with backoff](./examples/retry-with-backoff.ts), [server metadata](./examples/server-metadata.ts)
 
+We built 5 MCP servers before mcpresso. Every time, the same problems: boilerplate, broken auth, runtime failures. mcpresso fixes all of it.
+
+## Examples
+
+- **[Hello World](./examples/hello-world.ts)** – minimal server
+- **[Basic CRUD](./examples/basic-crud.ts)** – resource management
+- **[Custom Methods](./examples/custom-methods.ts)** – beyond CRUD
+- **[Multi-tenancy](./examples/multi-tenancy.ts)** – user isolation
+
+## From pain to production
+
+We wired **Claude AI** to a personal Airtable CMS. The naive server spammed `list()` and blew token limits. With mcpresso:
+
+- Removed dumb `list()` calls
+- Added enriched endpoints
+- Collapsed 10+ calls into 1
+
+**Result:** rebuilt in a weekend, stable in prod by Tuesday.  
+[Read the story →](https://medium.com/p/08730db7ab8c)
+
+## Documentation
+
+- **[Getting Started](./docs/getting-started.md)** - Complete beginner guide
+- **[Core Concepts](./docs/core-concepts.md)** - Resources, schemas, authentication
+- **[Examples](./examples/)** - Working code examples
+- **[CLI Reference](./docs/cli-reference.md)** - Command-line tools
+
 ## MCP Standards Compliance
 
 mcpresso follows the latest [Model Context Protocol specifications](https://modelcontextprotocol.io/specification/2025-06-18/basic) including:
@@ -38,17 +62,6 @@ mcpresso follows the latest [Model Context Protocol specifications](https://mode
 - **OAuth 2.1 Authorization** - [Latest authorization standard](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization) as specified in MCP 2025-06-18
 - **Tools and Resources** - [Proper MCP tool definition](https://modelcontextprotocol.io/specification/2025-06-18/server/tools) and resource management
 - **Protocol Compliance** - Full adherence to MCP lifecycle, message format, and error handling requirements
-
-## Quick Start
-
-```bash
-# Create and start a server in 2 minutes
-npx mcpresso init
-cd my-server
-npm run dev
-```
-
-Your MCP server is now running at `http://localhost:3000`.
 
 ## Templates
 
@@ -59,33 +72,12 @@ Your MCP server is now running at `http://localhost:3000`.
 | **Docker + OAuth + PostgreSQL** | Production deployments | OAuth 2.1 | PostgreSQL |
 | **Docker + Single User** | Internal tools | API Key | None |
 
-## Documentation
-
-- **[Getting Started](./docs/getting-started.md)** - Complete beginner guide
-- **[Core Concepts](./docs/core-concepts.md)** - Resources, schemas, authentication
-- **[Examples](./examples/)** - Working code examples
-- **[CLI Reference](./docs/cli-reference.md)** - Command-line tools
-
-## Examples
-
-- **[Hello World](./examples/hello-world.ts)** - Minimal server
-- **[Basic CRUD](./examples/basic-crud.ts)** - Resource management
-- **[Custom Methods](./examples/custom-methods.ts)** - Business logic beyond CRUD
-- **[Multi-tenancy](./examples/multi-tenancy.ts)** - User isolation and access control
-
-
 ## Contributing
 
-We welcome contributions to mcpresso! New features are planned and actively being developed. If you'd like to contribute:
+We welcome contributions!  
+- [Discussions](https://github.com/granular-software/mcpresso/discussions)  
+- [Contribution guide](CONTRIBUTING.md)
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+## License
 
-Please ensure your code follows our existing style and includes appropriate tests.
-
----
-
-**mcpresso** - MCP servers that work out of the box, following the latest [Model Context Protocol specifications](https://modelcontextprotocol.io/specification/2025-06-18/basic).
+MIT © Granular Software

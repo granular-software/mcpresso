@@ -99,30 +99,30 @@ const OFFICIAL_TEMPLATES: Template[] = [
       { name: 'SERVER_URL', description: 'Base URL of your server', required: true }
     ]
   },
-  {
-    id: 'template-express-no-auth',
-    name: 'Express + No Authentication',
-    description: 'Simple MCP server without authentication for public APIs',
-    category: 'express',
-    authType: 'none',
-    complexity: 'easy',
-    url: 'https://github.com/granular-software/template-express-no-auth',
-    features: [
-      'No authentication required',
-      'Express.js server',
-      'Simple setup',
-      'Perfect for public APIs',
-      'Development-friendly'
-    ],
-    requirements: [
-      'Node.js 18+',
-      'npm or yarn'
-    ],
-    envVars: [
-      { name: 'PORT', description: 'Server port', required: false, default: '3000' },
-      { name: 'SERVER_URL', description: 'Base URL of your server', required: true }
-    ]
-  },
+  // {
+  //   id: 'template-express-no-auth',
+  //   name: 'Express + No Authentication',
+  //   description: 'Simple MCP server without authentication for public APIs',
+  //   category: 'express',
+  //   authType: 'none',
+  //   complexity: 'easy',
+  //   url: 'https://github.com/granular-software/template-express-no-auth',
+  //   features: [
+  //     'No authentication required',
+  //     'Express.js server',
+  //     'Simple setup',
+  //     'Perfect for public APIs',
+  //     'Development-friendly'
+  //   ],
+  //   requirements: [
+  //     'Node.js 18+',
+  //     'npm or yarn'
+  //   ],
+  //   envVars: [
+  //     { name: 'PORT', description: 'Server port', required: false, default: '3000' },
+  //     { name: 'SERVER_URL', description: 'Base URL of your server', required: true }
+  //   ]
+  // },
   // {
   //   id: 'template-express-test',
   //   name: 'Express Test',
